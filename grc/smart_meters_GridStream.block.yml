@@ -1,0 +1,55 @@
+id: smart_meters_GridStream
+label: GridStream
+category: '[smart_meters]'
+
+templates:
+  imports: import smart_meters
+  make: smart_meters.GridStream(${crcEnable}, ${crcInitialValue}, ${meterMonitorID}, ${packetTypeFilter}, ${packetLengthFilter})
+
+#  Make one 'parameters' list entry for every parameter you want settable from the GUI.
+#     Keys include:
+#     * id (makes the value accessible as \$keyname, e.g. in the make entry)
+#     * label (label shown in the GUI)
+#     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
+parameters:
+- id: crcEnable
+  label: CRC Enable
+  dtype: enum
+  options: ['True', 'False']
+- id: crcInitialValue
+  label: CRC Initial Value
+  dtype: hex
+  default: '0x5FD6'
+- id: meterMonitorID
+  label: Meter ID
+  dtype: hex
+  default: '0'
+- id: packetTypeFilter
+  label: Packet Type
+  dtype: hex
+  default: '0x55'
+- id: packetLengthFilter
+  label: Packet Length
+  dtype: hex
+  default: '0x23'
+
+#  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
+#  Keys include:
+#      * label (an identifier for the GUI)
+#      * domain (optional - stream or message. Default is stream)
+#      * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
+#      * vlen (optional - data stream vector length. Default is 1)
+#      * optional (optional - set to 1 for optional inputs. Default is 0)
+inputs:
+- domain: message
+  id: pdu_in
+  optional: false
+
+outputs:
+- domain: message
+  id: pdu_out
+  optional: true
+
+#  'file_format' specifies the version of the GRC yml format used in the file
+#  and should usually not be changed.
+file_format: 1
