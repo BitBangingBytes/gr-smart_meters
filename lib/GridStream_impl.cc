@@ -104,7 +104,7 @@ namespace gr {
     } 
 
     void
-    GridStream_impl::general_work (pmt::pmt_t pdu)
+    GridStream_impl::pdu_handler (pmt::pmt_t pdu)
     {
 		pmt::pmt_t meta = pmt::car(pdu);
 		pmt::pmt_t v_data = pmt::cdr(pdu);
@@ -188,6 +188,7 @@ namespace gr {
 
 		int receivedCRC = out[packet_len+5] | out[packet_len+4] << 8;
 		uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size()-8); //Strip off header/len (6) and crc (2)
+
 	if( ((receivedCRC == calculatedCRC) || !(d_crcEnable)) && 
 	    ((meterID == d_meterMonitorID) || (meterID2 == d_meterMonitorID) || (d_meterMonitorID == 0)) &&
 	    ((packet_len == d_packetLengthFilter) || (d_packetLengthFilter == 0)) &&
