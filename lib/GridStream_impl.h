@@ -45,7 +45,7 @@ namespace gr {
       ~GridStream_impl();
 
       // Where all the action really happens
-      void general_work(pmt::pmt_t pdu);
+      void pdu_handler(pmt::pmt_t pdu);
     };
 
   } // namespace smart_meters
