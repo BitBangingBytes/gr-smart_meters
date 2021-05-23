@@ -57,7 +57,7 @@ namespace gr {
     {
     message_port_register_in(PMTCONSTSTR__PDU_IN);
     set_msg_handler(PMTCONSTSTR__PDU_IN,
-                    boost::bind(&GridStream_impl::general_work, this, _1));
+                    boost::bind(&GridStream_impl::pdu_handler, this, _1));
     message_port_register_out(PMTCONSTSTR__PDU_OUT);    	    
 	}
 
