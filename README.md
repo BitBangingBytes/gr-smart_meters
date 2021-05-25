@@ -5,5 +5,7 @@ The initial release contains a decoder for GridStream used by Landis+Gyr.
 A guide on what is needed to get this running is available on the RECESSIM Wiki. The decoder is built off of gr-FHSS_Utils by Sandia Labs. https://wiki.recessim.com/view/Gr-smart_meters_Setup_Guide
 # Known CRC Values
 Dallas, TX  |   CoServ CRC = 0x45F8
+
 Dallas, TX  |   Oncor CRC = 0x5FD6
+
 Quebec, CAN |   Hydro-Quebec CRC = 0x62C1
