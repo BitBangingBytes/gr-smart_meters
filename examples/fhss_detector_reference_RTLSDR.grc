@@ -1,6 +1,7 @@
 options:
   parameters:
     author: J. Gilbert
+    catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
     comment: ''
@@ -22,7 +23,6 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: Burst Detector Reference
-    window_size: 1600,1600
   states:
     bus_sink: false
     bus_source: false
@@ -39,7 +39,7 @@ blocks:
     gui_hint: 2,0,1,1
     label: Center Freq
     min_len: '200'
-    orient: Qt.Horizontal
+    orient: QtCore.Qt.Horizontal
     rangeType: float
     start: 100e6
     step: 1e6
@@ -85,7 +85,7 @@ blocks:
     gui_hint: 2,1,1,1
     label: Gain
     min_len: '200'
-    orient: Qt.Horizontal
+    orient: QtCore.Qt.Horizontal
     rangeType: float
     start: '0'
     step: '1'
@@ -118,7 +118,7 @@ blocks:
     gui_hint: 2,2,1,1
     label: Threshold
     min_len: '200'
-    orient: Qt.Horizontal
+    orient: QtCore.Qt.Horizontal
     rangeType: float
     start: '3'
     step: '1'
@@ -141,7 +141,7 @@ blocks:
     gain: '1.0'
     samp_rate: (samp_rate/decimation)
     width: '9600'
-    win: firdes.WIN_HAMMING
+    win: window.WIN_HAMMING
   states:
     bus_sink: false
     bus_source: false
@@ -155,6 +155,7 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
+    en_uvec: 'True'
   states:
     bus_sink: false
     bus_source: false
@@ -168,6 +169,7 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
+    en_uvec: 'True'
   states:
     bus_sink: false
     bus_source: false
@@ -346,8 +348,10 @@ blocks:
     channel_freqs: '[]'
     comment: ''
     maxoutbuf: '0'
-    method: '0'
+    method: fhss_utils.RMS
     minoutbuf: '0'
+    snr_min: '10.0'
+    thresh_min: '-25.0'
   states:
     bus_sink: false
     bus_source: false
@@ -373,6 +377,7 @@ blocks:
     max_bursts: '0'
     maxoutbuf: '0'
     minoutbuf: 2048*1000
+    preload_nf: ''
     sample_rate: samp_rate
     threshold: threshold
   states:
@@ -1411,7 +1416,7 @@ blocks:
     showports: 'True'
     type: msg_complex
     update_time: '0.005'
-    wintype: firdes.WIN_BLACKMAN_hARRIS
+    wintype: window.WIN_BLACKMAN_hARRIS
   states:
     bus_sink: false
     bus_source: false
@@ -1472,7 +1477,7 @@ blocks:
     showports: 'True'
     type: complex
     update_time: '0.01'
-    wintype: firdes.WIN_BLACKMAN_hARRIS
+    wintype: window.WIN_BLACKMAN_hARRIS
   states:
     bus_sink: false
     bus_source: false
