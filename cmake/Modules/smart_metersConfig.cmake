@@ -1,4 +1,6 @@
-INCLUDE(FindPkgConfig)
+if(NOT PKG_CONFIG_FOUND)
+    INCLUDE(FindPkgConfig)
+endif()
 PKG_CHECK_MODULES(PC_SMART_METERS smart_meters)
 
 FIND_PATH(

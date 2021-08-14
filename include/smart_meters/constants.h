@@ -11,8 +11,8 @@
 #ifndef INCLUDED_SMART_METERS_CONSTANTS_H
 #define INCLUDED_SMART_METERS_CONSTANTS_H
 
-#include <smart_meters/api.h>
 #include <pmt/pmt.h>
+#include <smart_meters/api.h>
 
 namespace gr {
 namespace smart_meters {
@@ -109,7 +109,7 @@ enum align_modes {
 };
 
 
-} // namespace pdu_utils
+} // namespace smart_meters
 } // namespace gr
 
 #endif /* INCLUDED_PDU_UTILS_CONSTANTS_H */
