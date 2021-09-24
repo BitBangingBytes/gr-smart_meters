@@ -163,8 +163,6 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     } else if (packet_type == 0xD5) {
         meterID2 = out[8 + 2] | out[7 + 2] << 8 | out[6 + 2] << 16 | out[5 + 2] << 24;
         meterID = out[12 + 2] | out[11 + 2] << 8 | out[10 + 2] << 16 | out[9 + 2] << 24;
-    } else {
-        return;
     }
 
     int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
