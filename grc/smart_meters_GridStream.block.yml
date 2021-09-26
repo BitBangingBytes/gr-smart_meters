@@ -4,19 +4,24 @@ category: '[smart_meters]'
 
 templates:
   imports: import smart_meters
-  make: smart_meters.GridStream(${crcEnable}, ${crcInitialValue}, ${meterMonitorID}, ${packetTypeFilter}, ${packetLengthFilter})
+  make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${timestampEnable}, ${frequencyEnable}, ${baudrateEnable}, 
+                                ${crcInitialValue}, ${meterLanSrcID}, ${meterLanDstID}, ${packetTypeFilter}, ${packetLengthFilter})
 
 parameters:
 - id: crcEnable
-  label: CRC Enable
+  label: Validate Checksum
   dtype: enum
   options: ['True', 'False']
 - id: crcInitialValue
   label: CRC Initial Value
   dtype: hex
   default: '0x5FD6'
-- id: meterMonitorID
-  label: Meter ID
+- id: meterLanSrcID
+  label: Source Meter ID
+  dtype: hex
+  default: '0'
+- id: meterLanDstID
+  label: Destination Meter ID
   dtype: hex
   default: '0'
 - id: packetTypeFilter
@@ -27,7 +32,31 @@ parameters:
   label: Packet Length
   dtype: hex
   default: '0x23'
-
+- id: debugEnable
+  label: Debug Enable
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+- id: timestampEnable
+  label: Timestamp
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+- id: frequencyEnable
+  label: Frequency
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+- id: baudrateEnable
+  label: Baud Rate
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+  
 inputs:
 - domain: message
   id: pdu_in
@@ -37,5 +66,29 @@ outputs:
 - domain: message
   id: pdu_out
   optional: true
+
+documentation: |-
+    GridStream Processing Block:
+    
+    Validate Checksum: 
+        Setting this to True will only pass through packets (or print debug) with a valid checksum.
+    
+    CRC Initial Value: 
+        Unique value per power provider, used to verify and filter to a single provider.
+    
+    Source Meter ID: 
+        Used to filter to a single smart meter LAN ID, setting this to 0 disables the filter.
+    
+    Destination Meter ID: 
+        Used to filter to a single smart meter LAN ID, setting this to 0 disables the filter.
+    
+    Packet Type: 
+        Filter by the type field, 0 disables the filter.
+    
+    Packet Length: 
+        Filter by the packet length, 0 disables the filter.
+    
+    Debug Enable:
+        Prints received data to the console in hex format. Baudrate, frequency and timestamp will be appended if set to True.
 
 file_format: 1
