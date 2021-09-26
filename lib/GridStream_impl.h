@@ -25,7 +25,7 @@ private:
     uint16_t d_crcInitialValue;
     uint32_t d_meterLanSrcID;
     uint32_t d_meterLanDstID;
-    uint8_t d_packetTypeFilter;
+    uint8_t  d_packetTypeFilter;
     uint16_t d_packetLengthFilter;
     uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size);
 
@@ -45,7 +45,7 @@ public:
                     uint16_t crcInitialValue,
                     uint32_t meterLanSrcID,
                     uint32_t meterLanDstID,
-                    uint8_t packetTypeFilter,
+                    uint8_t  packetTypeFilter,
                     uint16_t packetLengthFilter);
     ~GridStream_impl() override;
 };
