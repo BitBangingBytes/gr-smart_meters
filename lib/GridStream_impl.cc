@@ -177,10 +177,19 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 	std::string GridStreamMeterSrcID{ "" };
 	std::string GridStreamMeterDstID{ "" };
     if (packet_type == 0x55 && packet_len == 0x0023) {
-        receivedMeterLanSrcID = out[27 + 2] | out[26 + 2] << 8 | out[25 + 2] << 16 | out[24 + 2] << 24;
-        upTime = out[21 + 2] | out[20 + 2] << 8 | out[19 + 2] << 16 | out[18 + 2] << 24;
-        GridStreamMeterSrcID = (char_to_hex(int(out[26]))+char_to_hex(int(out[27]))+char_to_hex(int(out[28]))+char_to_hex(int(out[29])));
-        GridStreamMeterDstID = "Broadcast";
+        receivedMeterLanSrcID = out[27 + 2] | 
+								out[26 + 2] << 8 | 
+								out[25 + 2] << 16 | 
+								out[24 + 2] << 24;
+        GridStreamMeterSrcID = (char_to_hex(int(out[26]))+
+								char_to_hex(int(out[27]))+
+								char_to_hex(int(out[28]))+
+								char_to_hex(int(out[29])));
+        GridStreamMeterDstID = 0;
+		upTime = out[21 + 2] | 
+				 out[20 + 2] << 8 | 
+				 out[19 + 2] << 16 | 
+				 out[18 + 2] << 24;
     } else if (packet_type == 0xD5) {
         receivedMeterLanSrcID = out[14] | 
 								out[13] << 8 | 
