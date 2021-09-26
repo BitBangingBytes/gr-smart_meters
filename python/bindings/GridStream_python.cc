@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(GridStream.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(e16d55c477ff54ddac2ffb3cad891da9)                     */
+/* BINDTOOL_HEADER_FILE_HASH(c86fed56e535e57c24045eb064032c3f)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -30,21 +30,40 @@ namespace py = pybind11;
 void bind_GridStream(py::module& m)
 {
 
-    using GridStream = gr::smart_meters::GridStream;
+    using GridStream    = ::gr::smart_meters::GridStream;
 
 
-    py::class_<GridStream,
-               gr::block,
-               gr::basic_block, std::shared_ptr<GridStream>>(m, "GridStream", D(GridStream))
+    py::class_<GridStream, gr::block, gr::basic_block,
+        std::shared_ptr<GridStream>>(m, "GridStream", D(GridStream))
 
         .def(py::init(&GridStream::make),
-             py::arg("crcEnable"),
-             py::arg("crcInitialValue"),
-             py::arg("meterMonitorID"),
-             py::arg("packetTypeFilter"),
-             py::arg("packetLengthFilter"),
-             D(GridStream, make))
+           py::arg("crcEnable"),
+           py::arg("debugEnable"),
+           py::arg("timestampEnable"),
+           py::arg("frequencyEnable"),
+           py::arg("baudrateEnable"),
+           py::arg("crcInitialValue"),
+           py::arg("meterLanSrcID"),
+           py::arg("meterLanDstID"),
+           py::arg("packetTypeFilter"),
+           py::arg("packetLengthFilter"),
+           D(GridStream,make)
+        )
+        
+
 
 
         ;
+
+
+
+
 }
+
+
+
+
+
+
+
+

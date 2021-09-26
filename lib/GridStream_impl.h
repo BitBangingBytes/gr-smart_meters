@@ -18,8 +18,13 @@ class GridStream_impl : public GridStream
 {
 private:
     bool d_crcEnable;
+    bool d_debugEnable;
+    bool d_timestampEnable;
+    bool d_frequencyEnable;
+    bool d_baudrateEnable;
     uint16_t d_crcInitialValue;
-    uint32_t d_meterMonitorID;
+    uint32_t d_meterLanSrcID;
+    uint32_t d_meterLanDstID;
     uint8_t d_packetTypeFilter;
     uint16_t d_packetLengthFilter;
     uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size);
@@ -33,8 +38,13 @@ private:
 
 public:
     GridStream_impl(bool crcEnable,
+					bool debugEnable,
+					bool timestampEnable,
+					bool frequencyEnable,
+					bool baudrateEnable,
                     uint16_t crcInitialValue,
-                    uint32_t meterMonitorID,
+                    uint32_t meterLanSrcID,
+                    uint32_t meterLanDstID,
                     uint8_t packetTypeFilter,
                     uint16_t packetLengthFilter);
     ~GridStream_impl() override;
