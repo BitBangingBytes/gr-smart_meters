@@ -185,7 +185,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 								char_to_hex(int(out[27]))+
 								char_to_hex(int(out[28]))+
 								char_to_hex(int(out[29])));
-        GridStreamMeterDstID = 0;
+        GridStreamMeterDstID = "";
 		upTime = out[21 + 2] | 
 				 out[20 + 2] << 8 | 
 				 out[19 + 2] << 16 | 
@@ -212,6 +212,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
     uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
 
+	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
+	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
+
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
         ((receivedMeterLanSrcID == d_meterLanSrcID) || (d_meterLanSrcID == 0)) &&
         ((receivedMeterLanDstID == d_meterLanDstID) || (d_meterLanDstID == 0)) &&
@@ -225,11 +228,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 					std::cout << std::setw(2) << int(out[i]);
 					}
 				if (d_baudrateEnable) {
-					int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
 					std::cout << "\tBaudrate: " << std::dec << std::fixed << std::setprecision(0) << ((symbol_rate+25)/100)*100;			
 				}
 				if (d_frequencyEnable) {
-					double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
 					std::cout << "\tFreq: " << std::dec << std::fixed << std::setprecision(1) << floor(center_frequency/100000)/10;
 				}
 				if (d_timestampEnable) {
@@ -242,6 +243,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));		
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
+			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
 			
 			message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
 			return;
