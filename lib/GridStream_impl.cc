@@ -174,8 +174,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
     uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
 	if (receivedCRC != calculatedCRC) {
-		std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << "\n";  //Debug
-		return;
+		std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << " ";  //Debug
 	}
 
     int receivedMeterLanSrcID{ 0 };
