@@ -152,7 +152,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int packet_len = out[5] | out[4] << 8;
 
     // Loop to decode data based on packet_len
-    // std::cout << "Capacity: " << out.capacity() << " ";  //Debug
+    std::cout << "Capacity: " << out.capacity() << " ";  //Debug
     if (out.capacity() >= (packet_len+6)) {
         for (int ii = 0; ii < packet_len; ii++) {
             uint8_t byte = 0;
@@ -171,6 +171,13 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     } else {
         return;
     }
+    int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
+    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
+	if (receivedCRC != calculatedCRC) {
+		std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << "\n";  //Debug
+		return;
+	}
+
     int receivedMeterLanSrcID{ 0 };
     int receivedMeterLanDstID{ 0 };
     int upTime{ 0 };
@@ -208,9 +215,6 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 								char_to_hex(int(out[9]))+
 								char_to_hex(int(out[10])));            
     }
-
-    int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
-    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
 
 	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
 	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
