@@ -897,12 +897,12 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    baudrateEnable: 'True'
+    baudrateEnable: 'False'
     comment: ''
     crcEnable: 'False'
     crcInitialValue: '0x5FD6'
     debugEnable: 'True'
-    frequencyEnable: 'True'
+    frequencyEnable: 'False'
     maxoutbuf: '0'
     meterLanDstID: '0x00'
     meterLanSrcID: '0x00'
@@ -939,7 +939,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    ant0: TX/RX
+    ant0: '"TX/RX"'
     ant1: ''
     ant10: ''
     ant11: ''

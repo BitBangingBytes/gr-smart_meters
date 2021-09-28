@@ -114,7 +114,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
     pmt::pmt_t v_data = pmt::cdr(pdu);
-
+	const int header { 6 };
+	
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
@@ -153,7 +154,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 
     // Loop to decode data based on packet_len
     // std::cout << "Capacity: " << out.capacity() << " ";  //Debug
-    if (out.capacity() >= (packet_len+6)) {
+    // std::cout << "PktLen: " << packet_len+header << " ";  //Debug
+    if ( (out.capacity() >= (packet_len+header)) && (packet_len > 7) ) {
         for (int ii = 0; ii < packet_len; ii++) {
             uint8_t byte = 0;
             for (int jj = 0; jj < 8; jj++) {
@@ -171,12 +173,21 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     } else {
         return;
     }
-    int receivedMeterLanSrcID{ 0 };
-    int receivedMeterLanDstID{ 0 };
+    int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
+    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
+	//if (receivedCRC != calculatedCRC) {
+	//	std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << " ";  //Debug
+	//} else {
+	//	std::cout << "Good CRC: ";
+	//}
+
+    uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
+    uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
 	std::string GridStreamMeterSrcID{ "" };
 	std::string GridStreamMeterDstID{ "" };
-    if (packet_type == 0x55 && packet_len == 0x0023) {
+	
+    if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
         receivedMeterLanSrcID = out[27 + 2] | 
 								out[26 + 2] << 8 | 
 								out[25 + 2] << 16 | 
@@ -209,15 +220,12 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 								char_to_hex(int(out[10])));            
     }
 
-    int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
-    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
-
 	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
 	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
 
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
-        ((receivedMeterLanSrcID == d_meterLanSrcID) || (d_meterLanSrcID == 0)) &&
-        ((receivedMeterLanDstID == d_meterLanDstID) || (d_meterLanDstID == 0)) &&
+        (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
+        ((d_meterLanDstID == 0) && (d_meterLanSrcID == 0))) &&
         ((packet_len == d_packetLengthFilter) || (d_packetLengthFilter == 0)) &&
         ((packet_type == d_packetTypeFilter) || (d_packetTypeFilter == 0))) 
         {

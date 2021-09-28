@@ -33,7 +33,7 @@ parameters:
   dtype: hex
   default: '0x23'
 - id: debugEnable
-  label: Debug Enable
+  label: Console Output
   category: Debug
   hide: part
   dtype: enum
@@ -76,11 +76,8 @@ documentation: |-
     CRC Initial Value: 
         Unique value per power provider, used to verify and filter to a single provider.
     
-    Source Meter ID: 
-        Used to filter to a single smart meter LAN ID, setting this to 0 disables the filter.
-    
-    Destination Meter ID: 
-        Used to filter to a single smart meter LAN ID, setting this to 0 disables the filter.
+    Source Meter ID and Destination Meter ID: 
+        Used to filter to a single smart meter LAN ID, setting this to 0 disables the filter showing all meters. Setting the same meter ID in both fields will show all packets where the meter ID is in either the Src or Dst field.
     
     Packet Type: 
         Filter by the type field, 0 disables the filter.
@@ -88,7 +85,7 @@ documentation: |-
     Packet Length: 
         Filter by the packet length, 0 disables the filter.
     
-    Debug Enable:
+    Console Output:
         Prints received data to the console in hex format. Baudrate, frequency and timestamp will be appended if set to True.
 
 file_format: 1
