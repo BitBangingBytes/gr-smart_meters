@@ -153,8 +153,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int packet_len = out[5] | out[4] << 8;
 
     // Loop to decode data based on packet_len
-    std::cout << "Capacity: " << out.capacity() << " ";  //Debug
-    std::cout << "PktLen: " << packet_len+header << " ";  //Debug
+    // std::cout << "Capacity: " << out.capacity() << " ";  //Debug
+    // std::cout << "PktLen: " << packet_len+header << " ";  //Debug
     if ( (out.capacity() >= (packet_len+header)) && (packet_len > 7) ) {
         for (int ii = 0; ii < packet_len; ii++) {
             uint8_t byte = 0;
@@ -175,14 +175,14 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     }
     int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
     uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
-	if (receivedCRC != calculatedCRC) {
-		std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << " ";  //Debug
-	} else {
-		std::cout << "Good CRC: ";
-	}
+	//if (receivedCRC != calculatedCRC) {
+	//	std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << " ";  //Debug
+	//} else {
+	//	std::cout << "Good CRC: ";
+	//}
 
-    int receivedMeterLanSrcID{ 0 };
-    int receivedMeterLanDstID{ 0 };
+    uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
+    uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
 	std::string GridStreamMeterSrcID{ "" };
 	std::string GridStreamMeterDstID{ "" };
@@ -224,8 +224,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
 
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
-        ((receivedMeterLanSrcID == d_meterLanSrcID) || (d_meterLanSrcID == 0)) &&
-        ((receivedMeterLanDstID == d_meterLanDstID) || (d_meterLanDstID == 0)) &&
+        (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
+        ((d_meterLanDstID == 0) && (d_meterLanSrcID == 0))) &&
         ((packet_len == d_packetLengthFilter) || (d_packetLengthFilter == 0)) &&
         ((packet_type == d_packetTypeFilter) || (d_packetTypeFilter == 0))) 
         {
