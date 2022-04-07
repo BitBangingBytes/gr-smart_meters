@@ -242,6 +242,13 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 				if (d_frequencyEnable) {
 					std::cout << "\tFreq: " << std::dec << std::fixed << std::setprecision(1) << floor(center_frequency/100000)/10;
 				}
+				if (!(d_crcEnable)) {
+					if (receivedCRC == calculatedCRC) {
+						std::cout << "\tCRC:OK";
+					} else {
+						std::cout << "\tCRC:BAD";
+					}
+				}
 				if (d_timestampEnable) {
 					std::time_t result = std::time(nullptr);
 					std::cout << "\t" << std::ctime(&result);
