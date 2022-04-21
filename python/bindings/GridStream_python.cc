@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Free Software Foundation, Inc.
+ * Copyright 2022 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(GridStream.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(c86fed56e535e57c24045eb064032c3f)                     */
+/* BINDTOOL_HEADER_FILE_HASH(165bafbad61976e5eff5069d1cb4a7a3)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -40,6 +40,7 @@ void bind_GridStream(py::module& m)
            py::arg("crcEnable"),
            py::arg("debugEnable"),
            py::arg("timestampEnable"),
+           py::arg("epochEnable"),
            py::arg("frequencyEnable"),
            py::arg("baudrateEnable"),
            py::arg("crcInitialValue"),

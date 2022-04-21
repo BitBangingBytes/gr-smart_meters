@@ -25,6 +25,7 @@ namespace smart_meters {
 GridStream::sptr GridStream::make(	bool crcEnable,
 									bool debugEnable,
 									bool timestampEnable,
+                                    bool epochEnable,
 									bool frequencyEnable,
 									bool baudrateEnable,
 									uint16_t crcInitialValue,
@@ -34,7 +35,7 @@ GridStream::sptr GridStream::make(	bool crcEnable,
 									uint16_t packetLengthFilter)
 {
     return gnuradio::make_block_sptr<GridStream_impl>(
-        crcEnable, debugEnable, timestampEnable, frequencyEnable, baudrateEnable, 
+        crcEnable, debugEnable, timestampEnable, epochEnable, frequencyEnable, baudrateEnable, 
         crcInitialValue, meterLanSrcID, meterLanDstID, packetTypeFilter, packetLengthFilter);
 }
 
@@ -45,6 +46,7 @@ GridStream::sptr GridStream::make(	bool crcEnable,
 GridStream_impl::GridStream_impl(bool crcEnable,
 								 bool debugEnable,
 								 bool timestampEnable,
+                                 bool epochEnable,
 								 bool frequencyEnable,
 								 bool baudrateEnable,
 								 uint16_t crcInitialValue,
@@ -57,6 +59,7 @@ GridStream_impl::GridStream_impl(bool crcEnable,
       d_crcEnable(crcEnable),
       d_debugEnable(debugEnable),
       d_timestampEnable(timestampEnable),
+      d_epochEnable(epochEnable),
       d_frequencyEnable(frequencyEnable),
       d_baudrateEnable(baudrateEnable),
       d_crcInitialValue(crcInitialValue),
@@ -109,6 +112,31 @@ GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t si
             crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
     }
     return crc;
+}
+
+std::string time_in_HH_MM_SS_MMM()
+{
+    using namespace std::chrono;
+
+    // get current time
+    auto now = system_clock::now();
+
+    // get number of milliseconds for the current second
+    // (remainder after division into seconds)
+    auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+
+    // convert to std::time_t in order to convert to std::tm (broken time)
+    auto timer = system_clock::to_time_t(now);
+
+    // convert to broken time
+    std::tm bt = *std::localtime(&timer);
+
+    std::ostringstream oss;
+
+    oss << std::put_time(&bt, "%H:%M:%S"); // HH:MM:SS
+    oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+
+    return oss.str();
 }
 
 void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
@@ -249,6 +277,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 						std::cout << "\tCRC:BAD";
 					}
 				}
+                if (d_epochEnable) {
+                    std::cout << "\t" << time_in_HH_MM_SS_MMM();
+                }
 				if (d_timestampEnable) {
 					std::time_t result = std::time(nullptr);
 					std::cout << "\t" << std::ctime(&result);

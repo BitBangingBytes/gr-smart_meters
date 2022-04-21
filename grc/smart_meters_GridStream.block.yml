@@ -4,7 +4,7 @@ category: '[smart_meters]'
 
 templates:
   imports: import smart_meters
-  make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${timestampEnable}, ${frequencyEnable}, ${baudrateEnable}, 
+  make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${timestampEnable}, ${epochEnable}, ${frequencyEnable}, ${baudrateEnable}, 
                                 ${crcInitialValue}, ${meterLanSrcID}, ${meterLanDstID}, ${packetTypeFilter}, ${packetLengthFilter})
 
 parameters:
@@ -39,7 +39,13 @@ parameters:
   dtype: enum
   options: ['True', 'False']
 - id: timestampEnable
-  label: Timestamp
+  label: Time & Date
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+- id: epochEnable
+  label: Timestamp milliSec
   category: Debug
   hide: part
   dtype: enum

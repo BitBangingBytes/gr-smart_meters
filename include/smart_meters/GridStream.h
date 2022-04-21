@@ -35,6 +35,7 @@ public:
     static sptr make(bool     crcEnable,
                      bool     debugEnable,
                      bool     timestampEnable,
+                     bool     epochEnable,
                      bool     frequencyEnable,
                      bool     baudrateEnable,
                      uint16_t crcInitialValue,

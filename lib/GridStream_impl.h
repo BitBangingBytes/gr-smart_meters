@@ -20,6 +20,7 @@ private:
     bool d_crcEnable;
     bool d_debugEnable;
     bool d_timestampEnable;
+    bool d_epochEnable;
     bool d_frequencyEnable;
     bool d_baudrateEnable;
     uint16_t d_crcInitialValue;
@@ -40,6 +41,7 @@ public:
     GridStream_impl(bool crcEnable,
 					bool debugEnable,
 					bool timestampEnable,
+                    bool epochEnable,
 					bool frequencyEnable,
 					bool baudrateEnable,
                     uint16_t crcInitialValue,
