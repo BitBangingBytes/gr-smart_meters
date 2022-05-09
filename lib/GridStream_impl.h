@@ -33,7 +33,7 @@ private:
     /*!
      * \brief Message handler for input messages
      *
-     * \param msg Dict PMT or PDU message passed from the scheduler's message handling.
+     * \param pdu Dict PMT or PDU message passed from the scheduler's message handling.
      */
     void pdu_handler(pmt::pmt_t pdu);
 
