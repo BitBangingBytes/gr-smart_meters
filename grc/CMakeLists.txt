@@ -7,5 +7,6 @@
 #
 
 install(FILES
-    smart_meters_GridStream.block.yml DESTINATION share/gnuradio/grc/blocks
+    smart_meters_GridStream.block.yml
+    smart_meters_Deframer.block.yml DESTINATION share/gnuradio/grc/blocks
 )
