@@ -172,6 +172,11 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         packet_len = data.size();
     }
 
+    int overall_packet_size = header_len + packet_len;
+    if (overall_packet_size > data.size()) {
+        return;
+    }
+
     int receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
     uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len); // Strip off header/len (6) and crc (2)
 
@@ -225,7 +230,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         {
 			if (d_debugEnable) {
 				std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-				for (int i = 0; i < packet_len + 6; i++) // +6 to include 00FF2Axxyyzz header  
+				for (int i = 0; i < overall_packet_size; i++) // +6 to include 00FF2Axxyyzz header  
 					{
 					std::cout << std::setw(2) << int(data[i]);
 					}
