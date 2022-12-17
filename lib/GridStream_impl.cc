@@ -208,7 +208,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                     data[20 + 2] << 8 | 
                     data[19 + 2] << 16 | 
                     data[18 + 2] << 24;
-        } else if (packet_type == 0xD5) {
+        } 
+        else if (packet_type == 0xD5) {
             receivedMeterLanSrcID = data[14] | 
                                     data[13] << 8 | 
                                     data[12] << 16 | 
@@ -230,6 +231,11 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 
 	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
 	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
+	
+    std::time_t captured_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    if (pmt::dict_has_key(meta, pmt::intern("system_time"))) {
+        captured_time = pmt::to_double(pmt::dict_ref(meta, pmt::intern("system_time"), pmt::PMT_NIL));
+    }
 
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
         (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
@@ -260,8 +266,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                     std::cout << "\t" << time_in_HH_MM_SS_MMM();
                 }
 				if (d_timestampEnable) {
-					std::time_t result = std::time(nullptr);
-					std::cout << "\t" << std::ctime(&result);
+                    std::cout << "\t" << std::ctime(&captured_time);
 				} else {
 					std::cout << "\n";
 				}
