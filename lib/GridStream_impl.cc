@@ -159,7 +159,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (data.size() < 6)
         return;
 
-    // Packet decoded 00,FF,2A,packet_type(xx),packet_len(xxxx)
+    // Packet decoded 00,FF,message_type,packet_type,packet_len
     int packet_type = data[3];
     int packet_len = 0;
     if (packet_type == 0xD2) {
@@ -172,13 +172,20 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         packet_len = data.size();
     }
 
-    int overall_packet_size = header_len + packet_len;
-    if (overall_packet_size > data.size()) {
+    int decoded_packet_size = header_len + packet_len;
+    // Packet self reports larger than data we received
+    if (decoded_packet_size > data.size()) {
+        return;
+    }
+    
+    const int min_packet_size = 4;
+    // Packet self reports too small
+    if (packet_len < min_packet_size) {
         return;
     }
 
     int receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
-    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len); // Strip off header/len (6) and crc (2)
+    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
 
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
@@ -186,37 +193,39 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 	std::string GridStreamMeterSrcID{ "" };
 	std::string GridStreamMeterDstID{ "" };
 	
-    if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
-        receivedMeterLanSrcID = data[27 + 2] | 
-								data[26 + 2] << 8 | 
-								data[25 + 2] << 16 | 
-								data[24 + 2] << 24;
-        GridStreamMeterSrcID = (char_to_hex(int(data[26]))+
-								char_to_hex(int(data[27]))+
-								char_to_hex(int(data[28]))+
-								char_to_hex(int(data[29])));
-        GridStreamMeterDstID = "";
-		upTime = data[21 + 2] | 
-				 data[20 + 2] << 8 | 
-				 data[19 + 2] << 16 | 
-				 data[18 + 2] << 24;
-    } else if (packet_type == 0xD5) {
-        receivedMeterLanSrcID = data[14] | 
-								data[13] << 8 | 
-								data[12] << 16 | 
-								data[11] << 24;
-        receivedMeterLanDstID = data[10] | 
-								data[9] << 8 | 
-								data[8] << 16 | 
-								data[7] << 24;
-        GridStreamMeterSrcID = (char_to_hex(int(data[11]))+
-								char_to_hex(int(data[12]))+
-								char_to_hex(int(data[13]))+
-								char_to_hex(int(data[14])));    
-        GridStreamMeterDstID = (char_to_hex(int(data[7]))+
-								char_to_hex(int(data[8]))+
-								char_to_hex(int(data[9]))+
-								char_to_hex(int(data[10])));            
+    if (receivedCRC == calculatedCRC) {
+        if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
+            receivedMeterLanSrcID = data[27 + 2] | 
+                                    data[26 + 2] << 8 | 
+                                    data[25 + 2] << 16 | 
+                                    data[24 + 2] << 24;
+            GridStreamMeterSrcID = (char_to_hex(int(data[26]))+
+                                    char_to_hex(int(data[27]))+
+                                    char_to_hex(int(data[28]))+
+                                    char_to_hex(int(data[29])));
+            GridStreamMeterDstID = "";
+            upTime = data[21 + 2] | 
+                    data[20 + 2] << 8 | 
+                    data[19 + 2] << 16 | 
+                    data[18 + 2] << 24;
+        } else if (packet_type == 0xD5) {
+            receivedMeterLanSrcID = data[14] | 
+                                    data[13] << 8 | 
+                                    data[12] << 16 | 
+                                    data[11] << 24;
+            receivedMeterLanDstID = data[10] | 
+                                    data[9] << 8 | 
+                                    data[8] << 16 | 
+                                    data[7] << 24;
+            GridStreamMeterSrcID = (char_to_hex(int(data[11]))+
+                                    char_to_hex(int(data[12]))+
+                                    char_to_hex(int(data[13]))+
+                                    char_to_hex(int(data[14])));    
+            GridStreamMeterDstID = (char_to_hex(int(data[7]))+
+                                    char_to_hex(int(data[8]))+
+                                    char_to_hex(int(data[9]))+
+                                    char_to_hex(int(data[10])));            
+        }
     }
 
 	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
@@ -230,7 +239,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         {
 			if (d_debugEnable) {
 				std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-				for (int i = 0; i < overall_packet_size; i++) // +6 to include 00FF2Axxyyzz header  
+				for (int i = 0; i < decoded_packet_size; i++) // +6 to include 00FF2Axxyyzz header  
 					{
 					std::cout << std::setw(2) << int(data[i]);
 					}
