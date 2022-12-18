@@ -695,7 +695,6 @@ class google_map(gr.sync_block):
             in_sig=None,
             out_sig=None)
         
-
         self.log = gr.logger('log')
 
         self.debug = False
@@ -709,8 +708,6 @@ class google_map(gr.sync_block):
         self.gridstream_lan_dst_key = pmt.intern("Gridstream_LanDstID")
         self.gridstream_wan_src_key = pmt.intern("Gridstream_WanSrcID")
 
-        # if an attribute with the same name as a parameter is found,
-        # a callback is registered (properties work, too).
         self.API_Key = API_Key
         self.lat = Start_Lat
         self.lon = Start_Lon
@@ -718,9 +715,9 @@ class google_map(gr.sync_block):
 
         self.gmap = gmplot.GoogleMapPlotter(self.lat, self.lon, self.zoom, apikey=self.API_Key, map_type="satellite")
         self.gmap.draw("./map.html")
+
         # Uncomment this to automatically open a browser window
         # webbrowser.open_new_tab("./map.html")
-
 
     def handle_pdu(self, pdu):
         # if PDU is not pair, drop and wait for new PDU
@@ -743,8 +740,6 @@ class google_map(gr.sync_block):
         self.gmap.draw("./map.html")
         self.lat += 0.001
         self.lon += 0.001
-        # set default delay to internal value
-
 
     def decodeGPS(self, encodedData):
         latMultiplier = (float(2 ** 20) / 90)
