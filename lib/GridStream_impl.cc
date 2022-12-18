@@ -191,23 +191,25 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
 	std::string GridStreamMeterSrcID{ "" };
+	std::string GridStreamMeterSrcWanID{ "" };
 	std::string GridStreamMeterDstID{ "" };
 	
     if (receivedCRC == calculatedCRC) {
         if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
-            receivedMeterLanSrcID = data[27 + 2] | 
-                                    data[26 + 2] << 8 | 
-                                    data[25 + 2] << 16 | 
-                                    data[24 + 2] << 24;
-            GridStreamMeterSrcID = (char_to_hex(int(data[26]))+
-                                    char_to_hex(int(data[27]))+
-                                    char_to_hex(int(data[28]))+
-                                    char_to_hex(int(data[29])));
+            
+            receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 | 
+                                    data[25 + 2] << 16 | data[24 + 2] << 24;
+
+            GridStreamMeterSrcID = (char_to_hex(int(data[26]))+char_to_hex(int(data[27]))+
+                                    char_to_hex(int(data[28]))+char_to_hex(int(data[29])));
+
+            GridStreamMeterSrcWanID =   (char_to_hex(int(data[13]))+char_to_hex(int(data[14]))+
+                                        char_to_hex(int(data[15]))+char_to_hex(int(data[16]))+
+                                        char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
+            
             GridStreamMeterDstID = "";
-            upTime = data[21 + 2] | 
-                    data[20 + 2] << 8 | 
-                    data[19 + 2] << 16 | 
-                    data[18 + 2] << 24;
+            
+            upTime = data[21 + 2] | data[20 + 2] << 8 | data[19 + 2] << 16 | data[18 + 2] << 24;
         } 
         else if (packet_type == 0xD5) {
             receivedMeterLanSrcID = data[14] | 
@@ -272,6 +274,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 				}
 			}
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
+			meta = pmt::dict_add(meta, pmt::mp("Gridstream_WanSrcID"), pmt::mp(GridStreamMeterSrcWanID));
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));		
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
