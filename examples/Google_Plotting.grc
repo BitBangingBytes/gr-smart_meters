@@ -1,0 +1,146 @@
+options:
+  parameters:
+    author: hash
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: google_plots
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Google Maps and Earth Example
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: sandia_utils_file_source_0
+  id: sandia_utils_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    begin_tag: pmt.PMT_NIL
+    comment: ''
+    file: ./Test.dat
+    file_tags: 'False'
+    file_type: message
+    force_new: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg_period_ms: '0'
+    queue_depth: '100'
+    rate: '0'
+    repeat: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 228.0]
+    rotation: 0
+    state: enabled
+- name: smart_meters_Deframer_0
+  id: smart_meters_Deframer
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    debug: 'False'
+    max_length: '300'
+    maxoutbuf: '0'
+    min_length: '6'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [624, 244.0]
+    rotation: 0
+    state: enabled
+- name: smart_meters_GridStream_0
+  id: smart_meters_GridStream
+  parameters:
+    affinity: ''
+    alias: ''
+    baudrateEnable: 'True'
+    comment: ''
+    crcEnable: 'True'
+    crcInitialValue: '0x5FD6'
+    debugEnable: 'True'
+    epochEnable: 'False'
+    frequencyEnable: 'True'
+    maxoutbuf: '0'
+    meterLanDstID: '0'
+    meterLanSrcID: '0'
+    minoutbuf: '0'
+    packetLengthFilter: '0x00'
+    packetTypeFilter: '0x55'
+    timestampEnable: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 212.0]
+    rotation: 0
+    state: enabled
+- name: smart_meters_google_earth_0
+  id: smart_meters_google_earth
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    file_save: ./smart_meters.kml
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 172.0]
+    rotation: 0
+    state: true
+- name: smart_meters_google_map_0
+  id: smart_meters_google_map
+  parameters:
+    API_Key: ''''''
+    Start_Lat: '33.179569'
+    Start_Lon: '-96.698914'
+    Start_Zoom: '18'
+    affinity: ''
+    alias: ''
+    comment: ''
+    file_save: ./smart_meters.html
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 228.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [sandia_utils_file_source_0, out, smart_meters_Deframer_0, pdu_in]
+- [smart_meters_Deframer_0, pdu_out, smart_meters_GridStream_0, pdu_in]
+- [smart_meters_GridStream_0, pdu_out, smart_meters_google_earth_0, pdu_in]
+- [smart_meters_GridStream_0, pdu_out, smart_meters_google_map_0, pdu_in]
+
+metadata:
+  file_format: 1
