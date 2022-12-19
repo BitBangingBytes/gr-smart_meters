@@ -1,0 +1,21 @@
+id: smart_meters_google_earth
+label: Google Earth
+category: '[smart_meters]'
+
+templates:
+  imports: import smart_meters
+  make: smart_meters.google_earth(${file_save})
+
+parameters:
+- id: file_save
+  label: KML File
+  dtype: file_save
+  default: "./smart_meters.kml"
+
+inputs:
+- label: pdu_in
+  domain: message
+
+#  'file_format' specifies the version of the GRC yml format used in the file
+#  and should usually not be changed.
+file_format: 1
