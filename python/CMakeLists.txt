@@ -22,7 +22,8 @@ add_subdirectory(bindings)
 GR_PYTHON_INSTALL(
     FILES
     __init__.py
-    DESTINATION ${GR_PYTHON_DIR}/smart_meters
+    google_map.py
+    google_earth.py DESTINATION ${GR_PYTHON_DIR}/smart_meters
 )
 
 ########################################################################

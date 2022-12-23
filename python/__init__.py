@@ -20,4 +20,6 @@ except ModuleNotFoundError:
     pass
 
 # import any pure python here
+from .google_map import google_map
+from .google_earth import google_earth
 #
