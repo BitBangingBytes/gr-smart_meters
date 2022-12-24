@@ -732,30 +732,42 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     fill(out.begin(), out.end(), 0);
 
     uint8_t byte = 0;
-    long offset = 0;
+    int offset = 0;
     int framingErrorCounter = 0;
     int bytesToProcess = data.size() / 10;
 
-    for (int ii = 0; ii < bytesToProcess; ii++) {
+    for (int i = 0; i < bytesToProcess; i++) {
         bool normalStartStopBitLocation = (!data[offset] && data[offset+9]);
         bool shiftedStartStopBitLocation = (!data[offset+1] && data[offset+10]);
         if (normalStartStopBitLocation) {
             framingErrorCounter = 0;
+            for (int j = 0; j < 8; j++) {
+                // MSB FIRST PROCESSING
+                byte >>= 1;
+                offset += 1;
+                if (data[offset])
+                    byte |= 0x80;
+                if (j == 7) {
+                    out.push_back(byte);
+                    byte = 0;
+                    offset += 2;
+                }
+            }
         } 
-        else if (shiftedStartStopBitLocation) {
+        else if (shiftedStartStopBitLocation && (i != 0) ) {
             framingErrorCounter += 1;
             offset += 1;
-        }
-        for (int jj = 0; jj < 8; jj++) {
-            // MSB FIRST PROCESSING
-            byte >>= 1;
-            offset += 1;
-            if (data[offset])
-                byte |= 0x80;
-            if (jj == 7) {
-                out.push_back(byte);
-                byte = 0;
-                offset += 2;
+            for (int j = 0; j < 8; j++) {
+                // MSB FIRST PROCESSING
+                byte >>= 1;
+                offset += 1;
+                if (data[offset])
+                    byte |= 0x80;
+                if (j == 7) {
+                    out.push_back(byte);
+                    byte = 0;
+                    offset += 2;
+                }
             }
         }
         if (framingErrorCounter > 1) {
@@ -773,7 +785,9 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         std::cout << "\n";
     }
     // meta = pmt::dict_add(meta, pmt::mp("Frame_Size"), pmt::mp(bytesSuccessfullyProcessed));
-    message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
+    if (out.size() > 0) {
+        message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
+    }
     return;
 }
 
