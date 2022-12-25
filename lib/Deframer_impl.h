@@ -696,6 +696,7 @@ private:
      * \param pdu Dict PMT or PDU message passed from the scheduler's message handling.
      */
     void pdu_handler(pmt::pmt_t pdu);
+    uint8_t parse_byte(const std::vector<uint8_t>& data, int offset);
 
 public:
     Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug);

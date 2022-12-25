@@ -709,6 +709,20 @@ Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debu
  */
 Deframer_impl::~Deframer_impl() {}
 
+uint8_t
+Deframer_impl::parse_byte(const std::vector<uint8_t>& data, int offset) 
+{
+    uint8_t byte = 0;
+    for (int i = 0; i < 8; i++) {
+        // MSB FIRST PROCESSING
+        byte >>= 1;
+        offset += 1;
+        if (data[offset])
+            byte |= 0x80;
+    }
+    return byte;
+}
+
 void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = {};
@@ -724,14 +738,13 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     size_t vlen = pmt::length(pmt::cdr(pdu));
     const std::vector<uint8_t> data = pmt::u8vector_elements(v_data);
 
-    if ( ((data.size()/10) < d_min_length) || ((data.size()/10) > d_max_length) )
+    if ( ((data.size()/10) < d_min_length) || ((data.size()/10) > d_max_length) ) {
         return;
-
+    }
     std::vector<uint8_t> out;
     out.reserve(data.size());
     fill(out.begin(), out.end(), 0);
 
-    uint8_t byte = 0;
     int offset = 0;
     int framingErrorCounter = 0;
     int bytesToProcess = data.size() / 10;
@@ -741,34 +754,14 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         bool shiftedStartStopBitLocation = (!data[offset+1] && data[offset+10]);
         if (normalStartStopBitLocation) {
             framingErrorCounter = 0;
-            for (int j = 0; j < 8; j++) {
-                // MSB FIRST PROCESSING
-                byte >>= 1;
-                offset += 1;
-                if (data[offset])
-                    byte |= 0x80;
-                if (j == 7) {
-                    out.push_back(byte);
-                    byte = 0;
-                    offset += 2;
-                }
-            }
+            out.push_back(parse_byte(data, offset));
+            offset += 10;
         } 
         else if (shiftedStartStopBitLocation && (i != 0) ) {
             framingErrorCounter += 1;
             offset += 1;
-            for (int j = 0; j < 8; j++) {
-                // MSB FIRST PROCESSING
-                byte >>= 1;
-                offset += 1;
-                if (data[offset])
-                    byte |= 0x80;
-                if (j == 7) {
-                    out.push_back(byte);
-                    byte = 0;
-                    offset += 2;
-                }
-            }
+            out.push_back(parse_byte(data, offset));
+            offset += 10;
         }
         if (framingErrorCounter > 1) {
             break;
