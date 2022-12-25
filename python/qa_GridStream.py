@@ -36,8 +36,10 @@ class qa_GridStream(gr_unittest.TestCase):
         self.tb = None
 
     def test_001(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(False, False, False, False, False, False, 0x5FD6, 0, 0, 0x00, 0x00)
+        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
+        self.block_under_test = GridStream(False, False, False, False, False, False, 
+                                           0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
         in_data = [0x00, 0xff, 0x2a, 0x55, 0x00, 0x23, 0x30, 0xff, 
@@ -49,7 +51,6 @@ class qa_GridStream(gr_unittest.TestCase):
         expected_data = in_data
 
         in_pdu = pmt.cons(pmt.make_dict(), pmt.init_u8vector(len(in_data), in_data))
-        expected_pdu = pmt.cons(pmt.make_dict(), pmt.init_u8vector(len(expected_data), expected_data))                           
 
         self.tb.start()
         time.sleep(.001)
@@ -58,10 +59,10 @@ class qa_GridStream(gr_unittest.TestCase):
         self.tb.stop()
         self.tb.wait()
 
+        data = pmt.cdr(self.debug.get_message(0))
+
         self.assertEqual(1, self.debug.num_messages())
-        print(self.debug.get_message(0))
-        # ", ".join("0x{:04x}".format(num) for num in a_list)
-        self.assertTrue(pmt.equal(self.debug.get_message(0), expected_pdu))
+        self.assertTrue(data, expected_data)
 
 
 if __name__ == '__main__':
