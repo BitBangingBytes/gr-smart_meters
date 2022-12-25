@@ -231,9 +231,14 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         }
     }
 
-	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
-	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
-	
+    double center_frequency = 0;
+	if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
+        center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
+    }
+    int symbol_rate = 0;
+    if (pmt::dict_has_key(meta, pmt::intern("symbol_rate"))) {
+        symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
+    }
     std::time_t captured_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     if (pmt::dict_has_key(meta, pmt::intern("system_time"))) {
         captured_time = pmt::to_double(pmt::dict_ref(meta, pmt::intern("system_time"), pmt::PMT_NIL));
