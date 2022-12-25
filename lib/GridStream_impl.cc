@@ -172,20 +172,26 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         packet_len = data.size();
     }
 
-    int decoded_packet_size = header_len + packet_len;
-    // Packet self reports larger than data we received
-    if (decoded_packet_size > data.size()) {
-        return;
-    }
-    
     const int min_packet_size = 4;
     // Packet self reports too small
     if (packet_len < min_packet_size) {
         return;
     }
 
-    int receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
-    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
+    int decoded_packet_size = header_len + packet_len;
+    bool malformed_packet = false;
+    // Packet self reports larger than data we received
+    if (decoded_packet_size > data.size()) {
+        malformed_packet = true;
+    }
+    
+    int receivedCRC = 0;
+    uint16_t calculatedCRC = 1;
+    if (!malformed_packet) {
+        receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
+        calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
+    } 
+    
 
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
