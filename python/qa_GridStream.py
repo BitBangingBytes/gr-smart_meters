@@ -151,7 +151,7 @@ class qa_GridStream(gr_unittest.TestCase):
 
         self.assertEqual(0, self.debug.num_messages())
     
-    def test_004_failing_crc_partial_packet_no_pass_through(self):
+    def test_005_failing_crc_partial_packet_no_pass_through(self):
         # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
         self.block_under_test = GridStream(True, False, False, False, False, False, 
