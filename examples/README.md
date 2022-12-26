@@ -14,6 +14,9 @@ Flowgraph tuned for Ettus USRP B2xx running at 26Msps (902MHz - 928MHz)
 ### Google_Plotting.grc 
 Flowgraph to demo Google Earth/Map outputs with Test.dat source file
 
+### PDU_Playback.grc
+Flowgraph to play back recorded PDU's
+
 # Helpful Scripts
 ### GPS_Decoder.py
 Script to decode GPS data from packets, outputs Lat, Lon coordinates.
