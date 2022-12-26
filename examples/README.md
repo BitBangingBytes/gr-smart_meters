@@ -6,7 +6,7 @@ Flowgraph tuned for RTL-SDR running at 2.56Msps (913.72MHz - 916.28MHz)
 Flowgraph tuned for AirSpy running at 10Msps (910MHz - 920MHz)
 
 ### GridStream_HackRF.grc
-Flowgraph tuned for HackRF running at 20Msps (905MHz - 920MHz)
+Flowgraph tuned for HackRF running at 20Msps (905MHz - 925MHz)
 
 ### GridStream_USRP-B2xx.grc
 Flowgraph tuned for Ettus USRP B2xx running at 26Msps (902MHz - 928MHz)
