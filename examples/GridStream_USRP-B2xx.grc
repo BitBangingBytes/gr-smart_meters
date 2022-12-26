@@ -371,7 +371,7 @@ blocks:
     label: Decimation
     short_id: d
     type: intx
-    value: '260'
+    value: int(2688/10)
   states:
     bus_sink: false
     bus_source: false
@@ -388,7 +388,7 @@ blocks:
     label: FFT Size
     short_id: N
     type: intx
-    value: '2600'
+    value: int(2688/2)
   states:
     bus_sink: false
     bus_source: false
@@ -486,7 +486,7 @@ blocks:
     bus_structure: null
     coordinate: [312, 1052.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: freq_max
   id: parameter
   parameters:
@@ -907,7 +907,7 @@ blocks:
     label: Sample Rate
     short_id: r
     type: intx
-    value: int(26e6)
+    value: int(26.88e6)
   states:
     bus_sink: false
     bus_source: false
@@ -956,7 +956,7 @@ blocks:
     alias: ''
     comment: ''
     dtype: cf32_le
-    filename: /home/hash/SDR/Raw Captures/SigMF_Capture_12-03-2022.sigmf-meta
+    filename: /tmp/SigMF_Capture.sigmf-meta
     freq: center_freq
     label: '''radio'''
     rate: samp_rate
