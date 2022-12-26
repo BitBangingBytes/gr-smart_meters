@@ -5,8 +5,7 @@
 #
 # Dumps data to console, copy and paste to a file and save as .csv
 #
-import socket, select, string, sys, binascii, struct, time
-import numpy as np
+import sys, binascii
 
 
 def decodeGPS(encodedData):
@@ -44,9 +43,14 @@ if __name__ == "__main__":
 
     gpsData = sys.argv[1]
 
-    gpsBytes = bytes.fromhex(gpsData)
+    try:
+        gpsBytes = bytes.fromhex(gpsData)
+    except ValueError:
+        print("\nEnter a valid HEX string eg. 50C4EDDA2B5F\n")
+        sys.exit()
+
     if gpsBytes[0] == 0xFE:
         print('Device not using GPS coordinates for WAN address.')
         sys.exit()
     GPS_Lat, GPS_Lon, Color = decodeGPS(gpsBytes)
-    print(str(round(GPS_Lat, 6)) + "," + str(round(GPS_Lon, 6)))
+    print("\n", str(round(GPS_Lat, 6)) + "," + str(round(GPS_Lon, 6)), "\n")
