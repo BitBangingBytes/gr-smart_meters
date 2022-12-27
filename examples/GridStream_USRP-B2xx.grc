@@ -9,7 +9,7 @@ options:
     description: GridStream Flowgraph built from J. Gilbert FHSS Reference Flowgraph
     gen_cmake: 'On'
     gen_linking: dynamic
-    generate_options: qt_gui
+    generate_options: no_gui
     hier_block_src_path: '.:'
     id: GridStream_USRP_B2xx
     max_nouts: '0'
@@ -158,7 +158,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '32'
+    value: '40'
   states:
     bus_sink: false
     bus_source: false
@@ -228,7 +228,7 @@ blocks:
     comment: ''
     const: '5'
     maxoutbuf: '0'
-    minoutbuf: 1024*1000
+    minoutbuf: 1024*1000*50
     type: complex
     vlen: '1'
   states:
@@ -460,7 +460,7 @@ blocks:
     relative_span: '1.0'
     sample_rate: samp_rate
     taps: decim_taps
-    threads: '1'
+    threads: '4'
   states:
     bus_sink: false
     bus_source: false
@@ -1052,7 +1052,7 @@ blocks:
     label: Threshold (dB)
     short_id: t
     type: eng_float
-    value: '8'
+    value: '9'
   states:
     bus_sink: false
     bus_source: false
@@ -1065,7 +1065,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    ant0: '"TX/RX"'
+    ant0: '"RX2"'
     ant1: ''
     ant10: ''
     ant11: ''
@@ -1615,3 +1615,4 @@ connections:
 
 metadata:
   file_format: 1
+  grc_version: 3.10.5.0
