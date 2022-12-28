@@ -78,19 +78,29 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     int offset = 0;
     int framingErrorCounter = 0;
     int bytesToProcess = data.size() / 10;
+    bool gridstreamV5 = false;
+    uint8_t byte = 0;
 
     for (int i = 0; i < bytesToProcess; i++) {
         bool normalStartStopBitLocation = (!data[offset] && data[offset+9]);
         bool shiftedStartStopBitLocation = (!data[offset+1] && data[offset+10]);
+        if ((i == 1) && (gridstreamV5 == true)) {
+            normalStartStopBitLocation = (data[offset] && data[offset+9]);
+        }
         if (normalStartStopBitLocation) {
             framingErrorCounter = 0;
-            out.push_back(parse_byte(data, offset));
+            byte = parse_byte(data, offset);
+            if ((i == 0) && (byte == 0x80)) {
+                gridstreamV5 = true;
+            } 
+            out.push_back(byte);
             offset += 10;
         } 
         else if (shiftedStartStopBitLocation && (i != 0) ) {
             framingErrorCounter += 1;
             offset += 1;
-            out.push_back(parse_byte(data, offset));
+            byte = parse_byte(data, offset);
+            out.push_back(byte);
             offset += 10;
         }
         if (framingErrorCounter > 1) {
