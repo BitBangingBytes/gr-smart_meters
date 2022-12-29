@@ -238,5 +238,41 @@ class qa_Deframer(gr_unittest.TestCase):
         self.assertEqual(1, self.debug.num_messages())
         self.assertTrue(pmt.equal(self.debug.get_message(0), expected_pdu))
 
+    def test_011_frame_pass_GridStream_V5_multiple_packets_in_burst(self):
+        self.block_under_test = Deframer(1, 300, False)
+        self.connectUp()
+
+        in_data = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1,  
+                   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  
+                   0, 0, 1, 0, 1, 0, 1, 0, 1, 1,     
+                   0, 1, 0, 1, 0, 1, 0, 1, 1, 1,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                   0, 1, 0, 0, 0, 0, 1, 0, 0, 1,
+                   0, 0, 1, 0, 0, 0, 1, 0, 0, 1,
+                   0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                   1,
+                   0, 1, 0, 1, 0, 1, 0, 0, 0, 1,
+                   0, 0, 0, 0, 1, 0, 0, 0, 1, 1,
+                   0, 1, 1, 0, 0, 1, 1, 1, 1, 1]     
+                   
+        expected_data = [ 0x80, 0xFF, 0xAA, 0xD5, 0x00, 0x21, 0x22, 0x00, 0xFF, 0x15, 0x88, 0xF3 ]
+
+        in_pdu = pmt.cons(pmt.make_dict(), pmt.init_u8vector(len(in_data), in_data))
+        expected_pdu = pmt.cons(pmt.make_dict(), pmt.init_u8vector(len(expected_data), expected_data))                           
+
+        self.tb.start()
+        time.sleep(.001)
+        self.emitter.emit(in_pdu)
+        time.sleep(.05)
+        self.tb.stop()
+        self.tb.wait()
+
+        print("Actual:   ", self.debug.get_message(0))
+        print("Expected: ", expected_pdu)
+        self.assertEqual(1, self.debug.num_messages())
+        self.assertTrue(pmt.equal(self.debug.get_message(0), expected_pdu))
+
 if __name__ == '__main__':
     gr_unittest.run(qa_Deframer)

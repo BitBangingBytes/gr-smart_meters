@@ -78,6 +78,7 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     int offset = 0;
     int framingErrorCounter = 0;
     int bytesToProcess = data.size() / 10;
+    int bytesProcessed = 0;
     bool gridstreamV5 = false;
     uint8_t byte = 0;
 
@@ -94,21 +95,44 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
                 gridstreamV5 = true;
             } 
             out.push_back(byte);
+            bytesProcessed++;
             offset += 10;
         } 
         else if (shiftedStartStopBitLocation && (i != 0) ) {
             framingErrorCounter += 1;
             offset += 1;
-            byte = parse_byte(data, offset);
-            out.push_back(byte);
-            offset += 10;
+            if (gridstreamV5) {
+                byte = parse_byte(data, offset);
+                out.push_back(byte);
+                bytesProcessed++;
+                offset += 10;
+                if (data[offset] && data[offset+9]) {
+                    byte = parse_byte(data, offset);
+                    out.push_back(byte);
+                    bytesProcessed++;
+                    offset += 10;
+                    i++;
+                }
+                if (data[offset] && !data[offset+1]) {
+                    offset += 1;
+                }
+            } else {
+                byte = parse_byte(data, offset);
+                out.push_back(byte);
+                bytesProcessed++;
+                offset += 10;
+            }
         }
         if (framingErrorCounter > 1) {
             break;
         }
+        // std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
+        // std::cout << "Byte: " << int(byte) << " Bytes Processes: " << std::dec << bytesProcessed << "\n";
     }
-    int bytesSuccessfullyProcessed = offset/10;
-    out.resize(bytesSuccessfullyProcessed);
+    // int bytesSuccessfullyProcessed = offset/10;
+    // std::cout << "Bytes to Process: " << bytesToProcess << "\n";
+    // std::cout << "Bytes Processed:  " << bytesProcessed << "\n";
+    out.resize(bytesProcessed);
     
     if (d_debug) {
         std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
