@@ -175,7 +175,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [344, 1572.0]
+    coordinate: [456, 1560.0]
     rotation: 0
     state: enabled
 - name: len_dt
@@ -757,7 +757,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [648, 1556.0]
+    coordinate: [240, 1492.0]
     rotation: 0
     state: true
 - name: pdu_utils_message_counter_0_0
@@ -771,7 +771,21 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [648, 1420.0]
+    coordinate: [728, 1412.0]
+    rotation: 0
+    state: true
+- name: pdu_utils_message_counter_0_0_0
+  id: pdu_utils_message_counter
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    name: GridStream Deframe
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1016, 1428.0]
     rotation: 0
     state: true
 - name: pdu_utils_pdu_align_0
@@ -791,7 +805,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 1460.0]
+    coordinate: [448, 1464.0]
     rotation: 0
     state: true
 - name: pdu_utils_pdu_clock_recovery_0_0
@@ -915,6 +929,62 @@ blocks:
     coordinate: [360, 244.0]
     rotation: 0
     state: enabled
+- name: sandia_utils_file_sink_0
+  id: sandia_utils_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    align: 'True'
+    comment: ''
+    create_new_dir: 'True'
+    debug: 'False'
+    directory: '"."'
+    file_num_rollover: '0'
+    file_type: raw
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mode: sandia_utils.MANUAL
+    name_spec: '"1202_Richardson_12-28-2022_9am_after_PDU_Align.dat"'
+    nsamples: '0'
+    rate: int(samp_rate)
+    record: 'True'
+    type: message
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [696, 1656.0]
+    rotation: 0
+    state: enabled
+- name: sandia_utils_file_sink_0_0
+  id: sandia_utils_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    align: 'True'
+    comment: ''
+    create_new_dir: 'True'
+    debug: 'False'
+    directory: '"."'
+    file_num_rollover: '0'
+    file_type: raw
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mode: sandia_utils.MANUAL
+    name_spec: '"1202_Richardson_12-28-2022_9am_before_PDU_Align.dat"'
+    nsamples: '0'
+    rate: int(samp_rate)
+    record: 'True'
+    type: message
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1656.0]
+    rotation: 0
+    state: enabled
 - name: short_in
   id: parameter
   parameters:
@@ -949,24 +1019,6 @@ blocks:
     coordinate: [240, 244.0]
     rotation: 0
     state: enabled
-- name: sigmf_utils_pdu_meta_writer_0
-  id: sigmf_utils_pdu_meta_writer
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    dtype: cf32_le
-    filename: /tmp/SigMF_Capture.sigmf-meta
-    freq: center_freq
-    label: '''radio'''
-    rate: samp_rate
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1256, 1180.0]
-    rotation: 0
-    state: disabled
 - name: smart_meters_Deframer_0
   id: smart_meters_Deframer
   parameters:
@@ -982,7 +1034,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [880, 1548.0]
+    coordinate: [856, 1528.0]
     rotation: 0
     state: enabled
 - name: smart_meters_GridStream_0_0
@@ -996,19 +1048,19 @@ blocks:
     crcInitialValue: '0x5FD6'
     debugEnable: 'True'
     epochEnable: 'False'
-    frequencyEnable: 'False'
+    frequencyEnable: 'True'
     maxoutbuf: '0'
     meterLanDstID: '0'
     meterLanSrcID: '0'
     minoutbuf: '0'
     packetLengthFilter: '0x00'
     packetTypeFilter: '0x00'
-    timestampEnable: 'False'
+    timestampEnable: 'True'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1112, 1516.0]
+    coordinate: [1096, 1508.0]
     rotation: 0
     state: enabled
 - name: smart_meters_google_earth_0
@@ -1596,14 +1648,16 @@ connections:
 - [fhss_utils_cf_estimate_0, out, pdu_utils_pdu_fir_filter_1, pdu_in]
 - [fhss_utils_fft_burst_tagger_0, '0', fhss_utils_tagged_burst_to_pdu_0, '0']
 - [fhss_utils_tagged_burst_to_pdu_0, cpdus, fhss_utils_cf_estimate_0, in]
-- [pdu_add_system_time_0, pdu, smart_meters_Deframer_0, pdu_in]
-- [pdu_utils_pdu_align_0, pdu_out, pdu_add_system_time_0, pdu]
+- [pdu_add_system_time_0, pdu, pdu_utils_pdu_align_0, pdu_in]
+- [pdu_add_system_time_0, pdu, sandia_utils_file_sink_0_0, in]
 - [pdu_utils_pdu_align_0, pdu_out, pdu_utils_message_counter_0_0, msg]
-- [pdu_utils_pdu_clock_recovery_0_0, pdu_out, sigmf_utils_pdu_meta_writer_0, in]
+- [pdu_utils_pdu_align_0, pdu_out, sandia_utils_file_sink_0, in]
+- [pdu_utils_pdu_align_0, pdu_out, smart_meters_Deframer_0, pdu_in]
 - [pdu_utils_pdu_clock_recovery_0_0, pdu_out, virtual_sink_0_0_0, '0']
 - [pdu_utils_pdu_fine_time_measure_0, pdu_out, virtual_sink_0_0, '0']
 - [pdu_utils_pdu_fir_filter_1, pdu_out, pdu_utils_pdu_fine_time_measure_0, pdu_in]
 - [pdu_utils_pdu_quadrature_demod_cf_0, fpdus, pdu_utils_pdu_clock_recovery_0_0, pdu_in]
+- [smart_meters_Deframer_0, pdu_out, pdu_utils_message_counter_0_0_0, msg]
 - [smart_meters_Deframer_0, pdu_out, smart_meters_GridStream_0_0, pdu_in]
 - [smart_meters_GridStream_0_0, pdu_out, smart_meters_google_earth_0, pdu_in]
 - [smart_meters_GridStream_0_0, pdu_out, smart_meters_google_map_0, pdu_in]
@@ -1611,7 +1665,7 @@ connections:
 - [virtual_source_0, '0', fhss_utils_fft_burst_tagger_0, '0']
 - [virtual_source_0, '0', fosphor_qt_sink_c_0, '0']
 - [virtual_source_0_2, '0', pdu_utils_pdu_quadrature_demod_cf_0, cpdus]
-- [virtual_source_0_2_0, '0', pdu_utils_pdu_align_0, pdu_in]
+- [virtual_source_0_2_0, '0', pdu_add_system_time_0, pdu]
 
 metadata:
   file_format: 1
