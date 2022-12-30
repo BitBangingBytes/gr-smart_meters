@@ -104,7 +104,7 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     fill(out.begin(), out.end(), 0);
 
     int offset = 0;
-    int bytesToProcess = data.size() / 10;
+    int bytesToProcess = vlen/10;
     int bytesProcessed = 0;
 
     int gridstream_version = check_gridstream_version(data);
