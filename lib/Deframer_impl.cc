@@ -53,6 +53,29 @@ Deframer_impl::parse_byte(const std::vector<uint8_t>& data, int offset)
     return byte;
 }
 
+int
+Deframer_impl::check_gridstream_version(const std::vector<uint8_t>& data) 
+{
+    const uint32_t version4 = 0xFFA0;
+    const uint32_t version5 = 0xFFF0;
+    uint32_t start_of_frame = 0;
+    int offset = 0;
+    for (int i = 0; i < 20; i++) {
+        // MSB FIRST PROCESSING
+        start_of_frame >>= 1;
+        if (data[offset])
+            start_of_frame |= 0x8000;
+        offset += 1;
+    }
+    if (start_of_frame == version5) {
+        return 5;
+    } else if (start_of_frame == version4) {
+        return 4;
+    } else {
+        return 0;
+    }
+}
+
 void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = {};
@@ -65,10 +88,15 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
         return;
     }
+    
+    // Add some buffer to the data so we don't move beyond the end checking bit offset's
     size_t vlen = pmt::length(pmt::cdr(pdu));
-    const std::vector<uint8_t> data = pmt::u8vector_elements(v_data);
+    std::vector<uint8_t> input_data = pmt::u8vector_elements(v_data);
+    input_data.resize(vlen+10);
+    const std::vector<uint8_t> data = input_data;
 
-    if ( ((data.size()/10) < d_min_length) || ((data.size()/10) > d_max_length) ) {
+    const int header = 2;
+    if ( ((vlen/10) < header) || ((vlen/10) < d_min_length) || ((vlen/10) > d_max_length) ) {
         return;
     }
     std::vector<uint8_t> out;
@@ -76,32 +104,42 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     fill(out.begin(), out.end(), 0);
 
     int offset = 0;
-    int framingErrorCounter = 0;
     int bytesToProcess = data.size() / 10;
     int bytesProcessed = 0;
-    bool gridstreamV5 = false;
-    uint8_t byte = 0;
 
+    int gridstream_version = check_gridstream_version(data);
+    meta = pmt::dict_add(meta, pmt::mp("GridStream_Version"), pmt::mp(gridstream_version));
+    if (gridstream_version == 4) {
+        out.push_back(0x00);
+        out.push_back(0xFF);
+        offset += 20;
+        bytesProcessed += 2;
+        bytesToProcess -= 2;
+    }
+    if (gridstream_version == 5) {
+        out.push_back(0x80);
+        out.push_back(0xFF);
+        offset += 20;
+        bytesProcessed += 2;
+        bytesToProcess -= 2;
+    }
+
+    uint8_t byte = 0;    
+    int framingErrorCounter = 0;
     for (int i = 0; i < bytesToProcess; i++) {
         bool normalStartStopBitLocation = (!data[offset] && data[offset+9]);
         bool shiftedStartStopBitLocation = (!data[offset+1] && data[offset+10]);
-        if ((i == 1) && (gridstreamV5 == true)) {
-            normalStartStopBitLocation = (data[offset] && data[offset+9]);
-        }
         if (normalStartStopBitLocation) {
             framingErrorCounter = 0;
             byte = parse_byte(data, offset);
-            if ((i == 0) && (byte == 0x80)) {
-                gridstreamV5 = true;
-            } 
             out.push_back(byte);
             bytesProcessed++;
             offset += 10;
         } 
-        else if (shiftedStartStopBitLocation && (i != 0) ) {
+        else if (shiftedStartStopBitLocation) {
             framingErrorCounter += 1;
             offset += 1;
-            if (gridstreamV5) {
+            if (gridstream_version == 5) {
                 byte = parse_byte(data, offset);
                 out.push_back(byte);
                 bytesProcessed++;
@@ -126,22 +164,17 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         if (framingErrorCounter > 1) {
             break;
         }
-        // std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-        // std::cout << "Byte: " << int(byte) << " Bytes Processes: " << std::dec << bytesProcessed << "\n";
     }
-    // int bytesSuccessfullyProcessed = offset/10;
-    // std::cout << "Bytes to Process: " << bytesToProcess << "\n";
-    // std::cout << "Bytes Processed:  " << bytesProcessed << "\n";
     out.resize(bytesProcessed);
     
     if (d_debug) {
+        std::cout << "GridStream Version: " << gridstream_version << "\n";
         std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
         for (int i = 0; i < out.size(); i++) {
             std::cout << std::setw(2) << int(out[i]);
         }
         std::cout << "\n";
     }
-    // meta = pmt::dict_add(meta, pmt::mp("Frame_Size"), pmt::mp(bytesSuccessfullyProcessed));
     if (out.size() > 0) {
         message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
     }

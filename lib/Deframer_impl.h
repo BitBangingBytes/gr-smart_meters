@@ -27,6 +27,8 @@ private:
      */
     void pdu_handler(pmt::pmt_t pdu);
     uint8_t parse_byte(const std::vector<uint8_t>& data, int offset);
+    int check_gridstream_version(const std::vector<uint8_t>& data);
+
 
 public:
     Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug);
