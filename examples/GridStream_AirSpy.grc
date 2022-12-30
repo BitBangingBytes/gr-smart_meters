@@ -949,24 +949,6 @@ blocks:
     coordinate: [240, 244.0]
     rotation: 0
     state: enabled
-- name: sigmf_utils_pdu_meta_writer_0
-  id: sigmf_utils_pdu_meta_writer
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    dtype: cf32_le
-    filename: /home/hash/SDR/Raw Captures/SigMF_Capture_12-03-2022.sigmf-meta
-    freq: center_freq
-    label: '''radio'''
-    rate: samp_rate
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1256, 1180.0]
-    rotation: 0
-    state: disabled
 - name: smart_meters_Deframer_0
   id: smart_meters_Deframer
   parameters:
@@ -1206,7 +1188,6 @@ connections:
 - [pdu_add_system_time_0, pdu, smart_meters_Deframer_0, pdu_in]
 - [pdu_utils_pdu_align_0, pdu_out, pdu_add_system_time_0, pdu]
 - [pdu_utils_pdu_align_0, pdu_out, pdu_utils_message_counter_0_0, msg]
-- [pdu_utils_pdu_clock_recovery_0_0, pdu_out, sigmf_utils_pdu_meta_writer_0, in]
 - [pdu_utils_pdu_clock_recovery_0_0, pdu_out, virtual_sink_0_0_0, '0']
 - [pdu_utils_pdu_fine_time_measure_0, pdu_out, virtual_sink_0_0, '0']
 - [pdu_utils_pdu_fir_filter_1, pdu_out, pdu_utils_pdu_fine_time_measure_0, pdu_in]
@@ -1222,3 +1203,4 @@ connections:
 
 metadata:
   file_format: 1
+  grc_version: 3.10.5.0

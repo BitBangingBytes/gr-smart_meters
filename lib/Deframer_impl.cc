@@ -144,15 +144,12 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
                 out.push_back(byte);
                 bytesProcessed++;
                 offset += 10;
-                if (data[offset] && data[offset+9]) {
+                if (data[offset] && data[offset+9] && data[offset+10] && !data[offset+11]) {
                     byte = parse_byte(data, offset);
                     out.push_back(byte);
                     bytesProcessed++;
-                    offset += 10;
+                    offset += 11;
                     i++;
-                }
-                if (data[offset] && !data[offset+1]) {
-                    offset += 1;
                 }
             } else {
                 byte = parse_byte(data, offset);
