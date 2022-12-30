@@ -1,0 +1,37 @@
+id: smart_meters_google_map
+label: Google Map
+category: '[smart_meters]'
+
+templates:
+  imports: import smart_meters
+  make: smart_meters.google_map(${API_Key}, ${file_save}, ${Start_Lat}, ${Start_Lon}, ${Start_Zoom})
+
+parameters:
+- id: API_Key
+  label: Google API Key
+  dtype: string
+  default: ""
+- id: file_save
+  label: HTML File
+  dtype: file_save
+  default: "./smart_meters.html"
+- id: Start_Lat
+  label: Map Center Lattitude
+  dtype: float
+  default: 0
+- id: Start_Lon
+  label: Map Center Longitude
+  dtype: float
+  default: 0
+- id: Start_Zoom
+  label: Map Zoom Level
+  dtype: int
+  default: 15
+
+inputs:
+- label: pdu_in
+  domain: message
+
+#  'file_format' specifies the version of the GRC yml format used in the file
+#  and should usually not be changed.
+file_format: 1

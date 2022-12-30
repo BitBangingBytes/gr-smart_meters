@@ -9,9 +9,9 @@ options:
     description: GridStream Flowgraph built from J. Gilbert FHSS Reference Flowgraph
     gen_cmake: 'On'
     gen_linking: dynamic
-    generate_options: no_gui
+    generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: GridStream_HackRF_NoGUI
+    id: GridStream_AirSpy
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -23,6 +23,7 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: GridStream Detection Flowgraph
+    window_size: (1000,1000)
   states:
     bus_sink: false
     bus_source: false
@@ -41,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [512, 644.0]
+    coordinate: [512, 732.0]
     rotation: 0
     state: true
 - name: dec_fc
@@ -53,7 +54,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [304, 644.0]
+    coordinate: [304, 732.0]
     rotation: 0
     state: true
 - name: dec_fs
@@ -65,7 +66,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 644.0]
+    coordinate: [208, 732.0]
     rotation: 0
     state: true
 - name: dec_twidth
@@ -77,7 +78,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 644.0]
+    coordinate: [416, 732.0]
     rotation: 0
     state: true
 - name: decim_taps
@@ -89,7 +90,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [560, 964.0]
+    coordinate: [560, 1052.0]
     rotation: 0
     state: enabled
 - name: fir_att
@@ -101,7 +102,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [512, 708.0]
+    coordinate: [512, 796.0]
     rotation: 0
     state: true
 - name: fir_fc
@@ -113,7 +114,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [304, 708.0]
+    coordinate: [304, 796.0]
     rotation: 0
     state: true
 - name: fir_fs
@@ -126,7 +127,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 708.0]
+    coordinate: [208, 796.0]
     rotation: 0
     state: true
 - name: fir_taps
@@ -138,7 +139,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1136, 916.0]
+    coordinate: [1176, 1036.0]
     rotation: 0
     state: enabled
 - name: fir_twidth
@@ -150,14 +151,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 708.0]
+    coordinate: [416, 796.0]
     rotation: 0
     state: true
 - name: gain
   id: variable
   parameters:
     comment: ''
-    value: '70'
+    value: '35'
   states:
     bus_sink: false
     bus_source: false
@@ -174,7 +175,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [472, 1476.0]
+    coordinate: [344, 1572.0]
     rotation: 0
     state: enabled
 - name: len_dt
@@ -186,7 +187,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [592, 644.0]
+    coordinate: [592, 732.0]
     rotation: 0
     state: enabled
 - name: len_ft
@@ -198,7 +199,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [592, 708.0]
+    coordinate: [592, 796.0]
     rotation: 0
     state: enabled
 - name: blocks_file_sink_0
@@ -216,51 +217,47 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1240, 444.0]
+    coordinate: [1264, 588.0]
     rotation: 0
     state: disabled
-- name: blocks_file_source_0
-  id: blocks_file_source
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
   parameters:
     affinity: ''
     alias: ''
-    begin_tag: pmt.PMT_NIL
     comment: ''
-    file: /media/hash/ab2c0fd1-8148-4e36-8fb2-d6fb5ff9dd83/home/hash/SDR/Capture/Capture_26-880-000_915M_0924.cf32
-    length: '0'
+    const: '10'
     maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: '0'
-    repeat: 'False'
+    minoutbuf: 1024*1000
     type: complex
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [240, 404.0]
+    coordinate: [848, 604.0]
     rotation: 0
-    state: disabled
-- name: blocks_socket_pdu_0
-  id: blocks_socket_pdu
+    state: true
+- name: blocks_sigmf_source_minimal_0
+  id: blocks_sigmf_source_minimal
   parameters:
     affinity: ''
     alias: ''
+    begin_tag: pmt.PMT_NIL
     comment: ''
-    host: ''
+    file: SigMF_Capture.sigmf-data
+    length: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    mtu: '10000'
-    port: '52000'
-    tcp_no_delay: 'False'
-    type: TCP_SERVER
+    repeat: 'False'
+    type: complex float (fc32_le)
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1104, 1340.0]
+    coordinate: [240, 492.0]
     rotation: 0
-    state: true
+    state: disabled
 - name: blocks_throttle_0_0
   id: blocks_throttle
   parameters:
@@ -277,7 +274,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [344, 524.0]
+    coordinate: [344, 612.0]
     rotation: 180
     state: disabled
 - name: burst_width
@@ -289,7 +286,7 @@ blocks:
     label: Burst Width
     short_id: W
     type: intx
-    value: int(110e3)
+    value: int(50e3)
   states:
     bus_sink: false
     bus_source: false
@@ -357,7 +354,7 @@ blocks:
     label: Center Frequency Estimator SNR
     short_id: c
     type: eng_float
-    value: '-10'
+    value: '6'
   states:
     bus_sink: false
     bus_source: false
@@ -374,7 +371,7 @@ blocks:
     label: Decimation
     short_id: d
     type: intx
-    value: '372'
+    value: '100'
   states:
     bus_sink: false
     bus_source: false
@@ -391,7 +388,7 @@ blocks:
     label: FFT Size
     short_id: N
     type: intx
-    value: int(2000)
+    value: '1000'
   states:
     bus_sink: false
     bus_source: false
@@ -415,7 +412,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [848, 848.0]
+    coordinate: [832, 912.0]
     rotation: 0
     state: enabled
 - name: fhss_utils_fft_burst_tagger_0
@@ -428,22 +425,23 @@ blocks:
     burst_width: burst_width
     center_frequency: center_freq
     comment: ''
-    debug: 'True'
+    debug: 'False'
     fft_size: fft_size
     history_size: int(round((float(samp_rate)/fft_size)*hist_time))
     lookahead: int(round((float(samp_rate)/fft_size)*lookahead_time))
     max_burst_len: '0'
     max_bursts: '0'
     maxoutbuf: '0'
-    minoutbuf: 1024*1000*0
+    minoutbuf: 1024*1000*50
     preload_nf: '0'
+    preload_nf_bool: 'False'
     sample_rate: samp_rate
     threshold: threshold
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 844.0]
+    coordinate: [320, 932.0]
     rotation: 0
     state: enabled
 - name: fhss_utils_tagged_burst_to_pdu_0
@@ -467,7 +465,26 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [560, 804.0]
+    coordinate: [560, 892.0]
+    rotation: 0
+    state: enabled
+- name: fosphor_qt_sink_c_0
+  id: fosphor_qt_sink_c
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    freq_center: '0'
+    freq_span: samp_rate
+    gui_hint: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [312, 1052.0]
     rotation: 0
     state: enabled
 - name: freq_max
@@ -547,7 +564,7 @@ blocks:
     label: Lookahead Time [s]
     short_id: L
     type: eng_float
-    value: '0.0005'
+    value: '0.001'
   states:
     bus_sink: false
     bus_source: false
@@ -581,7 +598,7 @@ blocks:
     label: Min Burst Time [s]
     short_id: m
     type: eng_float
-    value: '0.02'
+    value: '0.001'
   states:
     bus_sink: false
     bus_source: false
@@ -614,9 +631,9 @@ blocks:
   id: note
   parameters:
     alias: ''
-    comment: ".                                   |------------ EBABLE THESE BLOCKS\
+    comment: ".                                   |------------ ENABLE THESE BLOCKS\
       \ TO PLAYBACK FROM A FILE  -----------|                                    \
-      \ |-------------------------- ENABLE THESE BLOCKS TO USE HackRF -------------------------------|\
+      \ |-------------------------- ENABLE THESE BLOCKS TO USE USRP B200 -------------------------------|\
       \                      |------- ENABLE THIS BLOCK TO CAPTURE DATA TO FILE ----------|\n\
       \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\
       \                                                                          \
@@ -628,7 +645,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [32, 548.0]
+    coordinate: [32, 636.0]
     rotation: 0
     state: enabled
 - name: note_0_1
@@ -644,7 +661,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [24, 1012.0]
+    coordinate: [24, 1100.0]
     rotation: 0
     state: enabled
 - name: note_0_1_0
@@ -657,7 +674,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [24, 1500.0]
+    coordinate: [24, 1588.0]
     rotation: 0
     state: enabled
 - name: note_0_1_0_0
@@ -673,7 +690,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [24, 1228.0]
+    coordinate: [24, 1316.0]
     rotation: 0
     state: enabled
 - name: note_1
@@ -690,7 +707,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [32, 660.0]
+    coordinate: [32, 748.0]
     rotation: 0
     state: true
 - name: outfile
@@ -710,20 +727,39 @@ blocks:
     coordinate: [240, 132.0]
     rotation: 0
     state: enabled
-- name: pdu_utils_message_counter_0
-  id: pdu_utils_message_counter
+- name: parameter_0
+  id: parameter
   parameters:
-    affinity: ''
     alias: ''
     comment: ''
-    name: GridStream CRC
+    hide: none
+    label: ''
+    short_id: ''
+    type: ''
+    value: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1096, 1452.0]
+    coordinate: [1392, 204.0]
     rotation: 0
-    state: enabled
+    state: true
+- name: pdu_add_system_time_0
+  id: pdu_add_system_time
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    key: pmt.intern("system_time")
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [648, 1556.0]
+    rotation: 0
+    state: true
 - name: pdu_utils_message_counter_0_0
   id: pdu_utils_message_counter
   parameters:
@@ -735,7 +771,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [808, 1316.0]
+    coordinate: [648, 1420.0]
     rotation: 0
     state: true
 - name: pdu_utils_pdu_align_0
@@ -744,8 +780,10 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
+    match_mode: pdu_utils.ALIGN_FIRST_MATCH
     maxoutbuf: '0'
     minoutbuf: '0'
+    mode: pdu_utils.ALIGN_DROP
     offset: '-20'
     syncwords: gridstream_syncwords
     threshold: '0'
@@ -753,7 +791,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [472, 1388.0]
+    coordinate: [320, 1460.0]
     rotation: 0
     state: true
 - name: pdu_utils_pdu_clock_recovery_0_0
@@ -766,12 +804,31 @@ blocks:
     debug: 'False'
     maxoutbuf: '0'
     minoutbuf: '0'
-    win_type: pdu_utils.TUKEY_WIN
+    win_type: pdu_utils.GAUSSIAN_WIN
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [784, 1120.0]
+    coordinate: [784, 1208.0]
+    rotation: 0
+    state: enabled
+- name: pdu_utils_pdu_fine_time_measure_0
+  id: pdu_utils_pdu_fine_time_measure
+  parameters:
+    affinity: ''
+    alias: ''
+    average_width: '10'
+    buffer_percent: '15'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    post_burst_time: post_burst_time
+    pre_burst_time: pre_burst_time
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 860.0]
     rotation: 0
     state: enabled
 - name: pdu_utils_pdu_fir_filter_1
@@ -788,7 +845,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1168, 852.0]
+    coordinate: [1072, 980.0]
     rotation: 0
     state: enabled
 - name: pdu_utils_pdu_quadrature_demod_cf_0
@@ -804,7 +861,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [480, 1164.0]
+    coordinate: [480, 1252.0]
     rotation: 0
     state: true
 - name: post_burst_time
@@ -850,7 +907,7 @@ blocks:
     label: Sample Rate
     short_id: r
     type: intx
-    value: int(20e6)
+    value: int(10e6)
   states:
     bus_sink: false
     bus_source: false
@@ -892,7 +949,43 @@ blocks:
     coordinate: [240, 244.0]
     rotation: 0
     state: enabled
-- name: smart_meters_GridStream_0
+- name: sigmf_utils_pdu_meta_writer_0
+  id: sigmf_utils_pdu_meta_writer
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    dtype: cf32_le
+    filename: /home/hash/SDR/Raw Captures/SigMF_Capture_12-03-2022.sigmf-meta
+    freq: center_freq
+    label: '''radio'''
+    rate: samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1256, 1180.0]
+    rotation: 0
+    state: disabled
+- name: smart_meters_Deframer_0
+  id: smart_meters_Deframer
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    debug: 'False'
+    max_length: '300'
+    maxoutbuf: '0'
+    min_length: '6'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 1548.0]
+    rotation: 0
+    state: enabled
+- name: smart_meters_GridStream_0_0
   id: smart_meters_GridStream
   parameters:
     affinity: ''
@@ -902,44 +995,97 @@ blocks:
     crcEnable: 'False'
     crcInitialValue: '0x5FD6'
     debugEnable: 'True'
-    frequencyEnable: 'True'
+    epochEnable: 'False'
+    frequencyEnable: 'False'
     maxoutbuf: '0'
-    meterLanDstID: '0x00'
-    meterLanSrcID: '0x00'
+    meterLanDstID: '0'
+    meterLanSrcID: '0'
     minoutbuf: '0'
     packetLengthFilter: '0x00'
     packetTypeFilter: '0x00'
-    timestampEnable: 'True'
+    timestampEnable: 'False'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [800, 1364.0]
+    coordinate: [1112, 1516.0]
     rotation: 0
     state: enabled
-- name: soapy_hackrf_source_0
-  id: soapy_hackrf_source
+- name: smart_meters_google_earth_0
+  id: smart_meters_google_earth
   parameters:
     affinity: ''
     alias: ''
-    amp: 'False'
-    bandwidth: 20e6
-    center_freq: center_freq
     comment: ''
-    dev_args: ''
-    gain: '32'
-    maxoutbuf: '0'
-    minoutbuf: 2000*1000
-    samp_rate: samp_rate
-    type: fc32
-    vga: '16'
+    file_save: ./smart_meters.kml
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [680, 452.0]
+    coordinate: [1416, 1476.0]
     rotation: 0
-    state: true
+    state: disabled
+- name: smart_meters_google_map_0
+  id: smart_meters_google_map
+  parameters:
+    API_Key: ''
+    Start_Lat: ''
+    Start_Lon: ''
+    Start_Zoom: '18'
+    affinity: ''
+    alias: ''
+    comment: ''
+    file_save: ./smart_meters.html
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 1532.0]
+    rotation: 0
+    state: disabled
+- name: soapy_custom_source_0
+  id: soapy_custom_source
+  parameters:
+    affinity: ''
+    agc0: 'False'
+    agc1: 'False'
+    alias: ''
+    antenna0: RX
+    antenna1: ''
+    bandwidth0: 10e6
+    bandwidth1: '0'
+    center_freq0: center_freq
+    center_freq1: '0'
+    comment: ''
+    dc_offset0: '0'
+    dc_offset1: '0'
+    dc_removal0: 'False'
+    dc_removal1: 'True'
+    dev_args: ''
+    driver: airspy
+    freq_correction0: '0'
+    freq_correction1: '0'
+    gain0: gain
+    gain1: '0'
+    iq_balance0: '0'
+    iq_balance1: '0'
+    maxoutbuf: '0'
+    minoutbuf: 2048*1000
+    nchan: '1'
+    samp_rate: samp_rate
+    settings0: ''
+    settings1: ''
+    stream_args: ''
+    tune_args0: ''
+    tune_args1: ''
+    type: fc32
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [624, 524.0]
+    rotation: 0
+    state: enabled
 - name: threshold
   id: parameter
   parameters:
@@ -949,7 +1095,7 @@ blocks:
     label: Threshold (dB)
     short_id: t
     type: eng_float
-    value: '10'
+    value: '8'
   states:
     bus_sink: false
     bus_source: false
@@ -967,7 +1113,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [936, 500.0]
+    coordinate: [1000, 548.0]
     rotation: 0
     state: enabled
 - name: virtual_sink_0_0
@@ -980,7 +1126,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1384, 860.0]
+    coordinate: [1432, 964.0]
     rotation: 0
     state: enabled
 - name: virtual_sink_0_0_0
@@ -993,7 +1139,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1072, 1164.0]
+    coordinate: [1072, 1252.0]
     rotation: 0
     state: enabled
 - name: virtual_sink_0_1
@@ -1006,7 +1152,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [160, 524.0]
+    coordinate: [160, 612.0]
     rotation: 180
     state: disabled
 - name: virtual_source_0
@@ -1019,7 +1165,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [128, 876.0]
+    coordinate: [128, 964.0]
     rotation: 0
     state: enabled
 - name: virtual_source_0_2
@@ -1032,7 +1178,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [248, 1164.0]
+    coordinate: [248, 1252.0]
     rotation: 0
     state: enabled
 - name: virtual_source_0_2_0
@@ -1045,26 +1191,32 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 1404.0]
+    coordinate: [64, 1492.0]
     rotation: 0
     state: enabled
 
 connections:
-- [blocks_file_source_0, '0', blocks_throttle_0_0, '0']
+- [blocks_multiply_const_vxx_0, '0', blocks_file_sink_0, '0']
+- [blocks_multiply_const_vxx_0, '0', virtual_sink_0, '0']
+- [blocks_sigmf_source_minimal_0, '0', blocks_throttle_0_0, '0']
 - [blocks_throttle_0_0, '0', virtual_sink_0_1, '0']
 - [fhss_utils_cf_estimate_0, out, pdu_utils_pdu_fir_filter_1, pdu_in]
 - [fhss_utils_fft_burst_tagger_0, '0', fhss_utils_tagged_burst_to_pdu_0, '0']
 - [fhss_utils_tagged_burst_to_pdu_0, cpdus, fhss_utils_cf_estimate_0, in]
+- [pdu_add_system_time_0, pdu, smart_meters_Deframer_0, pdu_in]
+- [pdu_utils_pdu_align_0, pdu_out, pdu_add_system_time_0, pdu]
 - [pdu_utils_pdu_align_0, pdu_out, pdu_utils_message_counter_0_0, msg]
-- [pdu_utils_pdu_align_0, pdu_out, smart_meters_GridStream_0, pdu_in]
+- [pdu_utils_pdu_clock_recovery_0_0, pdu_out, sigmf_utils_pdu_meta_writer_0, in]
 - [pdu_utils_pdu_clock_recovery_0_0, pdu_out, virtual_sink_0_0_0, '0']
-- [pdu_utils_pdu_fir_filter_1, pdu_out, virtual_sink_0_0, '0']
+- [pdu_utils_pdu_fine_time_measure_0, pdu_out, virtual_sink_0_0, '0']
+- [pdu_utils_pdu_fir_filter_1, pdu_out, pdu_utils_pdu_fine_time_measure_0, pdu_in]
 - [pdu_utils_pdu_quadrature_demod_cf_0, fpdus, pdu_utils_pdu_clock_recovery_0_0, pdu_in]
-- [smart_meters_GridStream_0, pdu_out, blocks_socket_pdu_0, pdus]
-- [smart_meters_GridStream_0, pdu_out, pdu_utils_message_counter_0, msg]
-- [soapy_hackrf_source_0, '0', blocks_file_sink_0, '0']
-- [soapy_hackrf_source_0, '0', virtual_sink_0, '0']
+- [smart_meters_Deframer_0, pdu_out, smart_meters_GridStream_0_0, pdu_in]
+- [smart_meters_GridStream_0_0, pdu_out, smart_meters_google_earth_0, pdu_in]
+- [smart_meters_GridStream_0_0, pdu_out, smart_meters_google_map_0, pdu_in]
+- [soapy_custom_source_0, '0', blocks_multiply_const_vxx_0, '0']
 - [virtual_source_0, '0', fhss_utils_fft_burst_tagger_0, '0']
+- [virtual_source_0, '0', fosphor_qt_sink_c_0, '0']
 - [virtual_source_0_2, '0', pdu_utils_pdu_quadrature_demod_cf_0, cpdus]
 - [virtual_source_0_2_0, '0', pdu_utils_pdu_align_0, pdu_in]
 

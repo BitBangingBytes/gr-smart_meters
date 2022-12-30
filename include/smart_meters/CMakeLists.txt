@@ -11,5 +11,6 @@
 ########################################################################
 install(FILES
     api.h
-    GridStream.h DESTINATION include/smart_meters
+    GridStream.h
+    Deframer.h DESTINATION include/smart_meters
 )

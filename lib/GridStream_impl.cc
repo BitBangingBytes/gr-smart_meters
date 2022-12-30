@@ -1,6 +1,6 @@
 /* -*- c++ -*- */
 /*
- * Copyright 2021 Hash.
+ * Copyright 2021, 2022 Hash.
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -96,24 +96,6 @@ std::string char_to_hex(T i)
     return stream.str();
 }
 
-uint16_t
-GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size)
-{
-    // Some known CRC Init's below
-    // uint16_t crc = 0x45F8;	// (CoServ CRC)
-    // uint16_t crc = 0x5FD6;	// (Oncor CRC)
-    // uint16_t crc = 0x62C1;	// (Hydro-Quebec CRC)
-    // Hard coded Poly 0x1021
-    uint16_t i = 6; // Skip over header/packet length [00,FF,2A,55,xx,xx]
-    while (size--) {
-        crc ^= data[i] << 8;
-        i++;
-        for (unsigned k = 0; k < 8; k++)
-            crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-    }
-    return crc;
-}
-
 std::string time_in_HH_MM_SS_MMM()
 {
     using namespace std::chrono;
@@ -139,11 +121,31 @@ std::string time_in_HH_MM_SS_MMM()
     return oss.str();
 }
 
+uint16_t
+GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t packet_len, size_t header_len)
+{
+    // Some known CRC Init's below
+    // uint16_t crc = 0x45F8;	// (CoServ CRC)
+    // uint16_t crc = 0x5FD6;	// (Oncor CRC)
+    // uint16_t crc = 0x62C1;	// (Hydro-Quebec CRC)
+    uint16_t Poly = 0x1021;
+    const int crc_len = 2;
+    uint16_t i = header_len; // Skip over header/packet length [eg. 00,FF,2A,55,xx,(xx)]
+    int size = packet_len - crc_len;
+    while (size--) {
+        crc ^= data[i] << 8;
+        i++;
+        for (unsigned k = 0; k < 8; k++)
+            crc = crc & 0x8000 ? (crc << 1) ^ Poly : crc << 1;
+    }
+    return crc;
+}
+
 void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
     pmt::pmt_t v_data = pmt::cdr(pdu);
-	const int header { 6 };
+	int header_len = 0;
 	
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
@@ -154,103 +156,99 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     const std::vector<uint8_t> data = pmt::u8vector_elements(v_data);
 
     // Packet not large enough, probably noise
-    if (data.size() < 120)
+    if (data.size() < 6)
         return;
 
-    // output data from block, 10 bytes input per 1 byte output
-    std::vector<uint8_t> out;
-    out.reserve(data.size() / 10);
-
-    // Read header and packet length
-    uint8_t byte = 0;
-    long offset = 1;
-    for (int ii = 0; ii < 4 + 2; ii++) {
-        for (int jj = 0; jj < 8; jj++) {
-            // START MSB FIRST PROCESSING
-            byte >>= 1;
-            if (data[jj + offset])
-                byte |= 0x80;
-            if ((jj % 8) == 7) {
-                out.push_back(byte);
-                byte = 0;
-            }
-        }
-        offset += 10;
-    }
-    // Packet decoded 00,FF,2A,packet_type(xx),packet_len(xxxx)
-    int packet_type = out[3];
-    int packet_len = out[5] | out[4] << 8;
-
-    // Loop to decode data based on packet_len
-    // std::cout << "Capacity: " << out.capacity() << " ";  //Debug
-    // std::cout << "PktLen: " << packet_len+header << " ";  //Debug
-    if ( (out.capacity() >= (packet_len+header)) && (packet_len > 7) ) {
-        for (int ii = 0; ii < packet_len; ii++) {
-            uint8_t byte = 0;
-            for (int jj = 0; jj < 8; jj++) {
-                // START MSB FIRST PROCESSING
-                byte >>= 1;
-                if (data[jj + offset])
-                    byte |= 0x80;
-                if ((jj % 8) == 7) {
-                    out.push_back(byte);
-                    byte = 0;
-                }
-            }
-            offset += 10;
-        }
+    // Packet decoded 00,FF,message_type,packet_type,packet_len
+    int packet_type = data[3];
+    int packet_len = 0;
+    if (packet_type == 0xD2) {
+        header_len = 5;
+        packet_len = data[4];
+    } else if ((packet_type == 0x55) || (packet_type == 0xD5)) {
+        header_len = 6;
+        packet_len = data[5];
     } else {
+        packet_len = data.size();
+    }
+
+    const int min_packet_size = 4;
+    // Packet self reports too small
+    if (packet_len < min_packet_size) {
         return;
     }
-    int receivedCRC = out[packet_len + 5] | out[packet_len + 4] << 8;
-    uint16_t calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, out, out.size() - 8); // Strip off header/len (6) and crc (2)
-	//if (receivedCRC != calculatedCRC) {
-	//	std::cout << "Bad CRC, Received: " << std::hex << std::setw(2) << std::uppercase << receivedCRC << " Calculated: " << calculatedCRC << " ";  //Debug
-	//} else {
-	//	std::cout << "Good CRC: ";
-	//}
+
+    int decoded_packet_size = header_len + packet_len;
+    bool malformed_packet = false;
+    // Packet self reports larger than data we received
+    if (decoded_packet_size > data.size()) {
+        malformed_packet = true;
+    }
+    
+    int receivedCRC = 0;
+    uint16_t calculatedCRC = 1;
+    if (!malformed_packet) {
+        receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
+        calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
+    } 
+    
 
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
 	std::string GridStreamMeterSrcID{ "" };
+	std::string GridStreamMeterSrcWanID{ "" };
 	std::string GridStreamMeterDstID{ "" };
 	
-    if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
-        receivedMeterLanSrcID = out[27 + 2] | 
-								out[26 + 2] << 8 | 
-								out[25 + 2] << 16 | 
-								out[24 + 2] << 24;
-        GridStreamMeterSrcID = (char_to_hex(int(out[26]))+
-								char_to_hex(int(out[27]))+
-								char_to_hex(int(out[28]))+
-								char_to_hex(int(out[29])));
-        GridStreamMeterDstID = "";
-		upTime = out[21 + 2] | 
-				 out[20 + 2] << 8 | 
-				 out[19 + 2] << 16 | 
-				 out[18 + 2] << 24;
-    } else if (packet_type == 0xD5) {
-        receivedMeterLanSrcID = out[14] | 
-								out[13] << 8 | 
-								out[12] << 16 | 
-								out[11] << 24;
-        receivedMeterLanDstID = out[10] | 
-								out[9] << 8 | 
-								out[8] << 16 | 
-								out[7] << 24;
-        GridStreamMeterSrcID = (char_to_hex(int(out[11]))+
-								char_to_hex(int(out[12]))+
-								char_to_hex(int(out[13]))+
-								char_to_hex(int(out[14])));    
-        GridStreamMeterDstID = (char_to_hex(int(out[7]))+
-								char_to_hex(int(out[8]))+
-								char_to_hex(int(out[9]))+
-								char_to_hex(int(out[10])));            
+    if (receivedCRC == calculatedCRC) {
+        if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
+            
+            receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 | 
+                                    data[25 + 2] << 16 | data[24 + 2] << 24;
+
+            GridStreamMeterSrcID = (char_to_hex(int(data[26]))+char_to_hex(int(data[27]))+
+                                    char_to_hex(int(data[28]))+char_to_hex(int(data[29])));
+
+            GridStreamMeterSrcWanID =   (char_to_hex(int(data[13]))+char_to_hex(int(data[14]))+
+                                        char_to_hex(int(data[15]))+char_to_hex(int(data[16]))+
+                                        char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
+            
+            GridStreamMeterDstID = "";
+            
+            upTime = data[21 + 2] | data[20 + 2] << 8 | data[19 + 2] << 16 | data[18 + 2] << 24;
+        } 
+        else if (packet_type == 0xD5) {
+            receivedMeterLanSrcID = data[14] | 
+                                    data[13] << 8 | 
+                                    data[12] << 16 | 
+                                    data[11] << 24;
+            receivedMeterLanDstID = data[10] | 
+                                    data[9] << 8 | 
+                                    data[8] << 16 | 
+                                    data[7] << 24;
+            GridStreamMeterSrcID = (char_to_hex(int(data[11]))+
+                                    char_to_hex(int(data[12]))+
+                                    char_to_hex(int(data[13]))+
+                                    char_to_hex(int(data[14])));    
+            GridStreamMeterDstID = (char_to_hex(int(data[7]))+
+                                    char_to_hex(int(data[8]))+
+                                    char_to_hex(int(data[9]))+
+                                    char_to_hex(int(data[10])));            
+        }
     }
 
-	double center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
-	int symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
+    double center_frequency = 0;
+	if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
+        center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
+    }
+    int symbol_rate = 0;
+    if (pmt::dict_has_key(meta, pmt::intern("symbol_rate"))) {
+        symbol_rate = pmt::to_double(pmt::dict_ref(meta, pmt::intern("symbol_rate"), pmt::PMT_NIL));
+    }
+    std::time_t captured_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    if (pmt::dict_has_key(meta, pmt::intern("system_time"))) {
+        captured_time = pmt::to_double(pmt::dict_ref(meta, pmt::intern("system_time"), pmt::PMT_NIL));
+    }
 
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
         (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
@@ -260,9 +258,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         {
 			if (d_debugEnable) {
 				std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-				for (int i = 0; i < packet_len + 6; i++) // +6 to include 00FF2Axxyyzz header  
+				for (int i = 0; i < decoded_packet_size; i++) // +6 to include 00FF2Axxyyzz header  
 					{
-					std::cout << std::setw(2) << int(out[i]);
+					std::cout << std::setw(2) << int(data[i]);
 					}
 				if (d_baudrateEnable) {
 					std::cout << "\tBaudrate: " << std::dec << std::fixed << std::setprecision(0) << ((symbol_rate+25)/100)*100;			
@@ -281,18 +279,18 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                     std::cout << "\t" << time_in_HH_MM_SS_MMM();
                 }
 				if (d_timestampEnable) {
-					std::time_t result = std::time(nullptr);
-					std::cout << "\t" << std::ctime(&result);
+                    std::cout << "\t" << std::ctime(&captured_time);
 				} else {
 					std::cout << "\n";
 				}
 			}
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
+			meta = pmt::dict_add(meta, pmt::mp("Gridstream_WanSrcID"), pmt::mp(GridStreamMeterSrcWanID));
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));		
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
 			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
 			
-			message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
+			message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
 			return;
 		} 
 		else {

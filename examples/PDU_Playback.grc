@@ -1,0 +1,139 @@
+options:
+  parameters:
+    author: hash
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: pdu_playback
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Not titled yet
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '32000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 12.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    en_uvec: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [976, 392.0]
+    rotation: 0
+    state: disabled
+- name: sandia_utils_file_source_0
+  id: sandia_utils_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    begin_tag: pmt.PMT_NIL
+    comment: ''
+    file: /home/hash/SDR/gr-smart_meters/examples/SigMF_Capture_11-29-2022.dat
+    file_tags: 'False'
+    file_type: message
+    force_new: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg_period_ms: '10'
+    queue_depth: '100'
+    rate: int(samp_rate)
+    repeat: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [432, 260.0]
+    rotation: 0
+    state: true
+- name: smart_meters_Deframer_0
+  id: smart_meters_Deframer
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    debug: 'False'
+    max_length: '300'
+    maxoutbuf: '0'
+    min_length: '5'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 276.0]
+    rotation: 0
+    state: true
+- name: smart_meters_GridStream_0
+  id: smart_meters_GridStream
+  parameters:
+    affinity: ''
+    alias: ''
+    baudrateEnable: 'False'
+    comment: ''
+    crcEnable: 'False'
+    crcInitialValue: '0x5FD6'
+    debugEnable: 'True'
+    epochEnable: 'False'
+    frequencyEnable: 'False'
+    maxoutbuf: '0'
+    meterLanDstID: '0'
+    meterLanSrcID: '0'
+    minoutbuf: '0'
+    packetLengthFilter: '0x00'
+    packetTypeFilter: '0x00'
+    timestampEnable: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [968, 244.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [sandia_utils_file_source_0, out, smart_meters_Deframer_0, pdu_in]
+- [smart_meters_Deframer_0, pdu_out, blocks_message_debug_0, print]
+- [smart_meters_Deframer_0, pdu_out, smart_meters_GridStream_0, pdu_in]
+
+metadata:
+  file_format: 1

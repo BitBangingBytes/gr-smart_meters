@@ -1,6 +1,6 @@
 /* -*- c++ -*- */
 /*
- * Copyright 2021 Hash.
+ * Copyright 2021, 2022 Hash.
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -28,7 +28,7 @@ private:
     uint32_t d_meterLanDstID;
     uint8_t  d_packetTypeFilter;
     uint16_t d_packetLengthFilter;
-    uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size);
+    uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size, size_t header);
 
     /*!
      * \brief Message handler for input messages

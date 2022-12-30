@@ -22,7 +22,8 @@ add_subdirectory(bindings)
 GR_PYTHON_INSTALL(
     FILES
     __init__.py
-    DESTINATION ${GR_PYTHON_DIR}/smart_meters
+    google_map.py
+    google_earth.py DESTINATION ${GR_PYTHON_DIR}/smart_meters
 )
 
 ########################################################################
@@ -31,3 +32,5 @@ GR_PYTHON_INSTALL(
 include(GrTest)
 
 set(GR_TEST_TARGET_DEPS gnuradio-smart_meters)
+GR_ADD_TEST(qa_Deframer ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_Deframer.py)
+GR_ADD_TEST(qa_GridStream ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_GridStream.py)
