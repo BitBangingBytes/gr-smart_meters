@@ -217,7 +217,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1264, 588.0]
+    coordinate: [1384, 596.0]
     rotation: 0
     state: disabled
 - name: blocks_multiply_const_vxx_0
@@ -235,7 +235,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [848, 604.0]
+    coordinate: [768, 620.0]
     rotation: 0
     state: true
 - name: blocks_sigmf_source_minimal_0
@@ -486,7 +486,7 @@ blocks:
     bus_structure: null
     coordinate: [312, 1052.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: freq_max
   id: parameter
   parameters:
@@ -898,6 +898,148 @@ blocks:
     coordinate: [576, 244.0]
     rotation: 0
     state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'True'
+    fc: center_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.01'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [952, 516.0]
+    rotation: 0
+    state: true
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: center_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.01'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [952, 436.0]
+    rotation: 0
+    state: true
 - name: samp_rate
   id: parameter
   parameters:
@@ -1065,7 +1207,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [624, 524.0]
+    coordinate: [568, 516.0]
     rotation: 0
     state: enabled
 - name: threshold
@@ -1095,7 +1237,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1000, 548.0]
+    coordinate: [976, 596.0]
     rotation: 0
     state: enabled
 - name: virtual_sink_0_0
@@ -1150,6 +1292,19 @@ blocks:
     coordinate: [128, 964.0]
     rotation: 0
     state: enabled
+- name: virtual_source_0_0
+  id: virtual_source
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: input
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1192, 612.0]
+    rotation: 0
+    state: disabled
 - name: virtual_source_0_2
   id: virtual_source
   parameters:
@@ -1178,7 +1333,8 @@ blocks:
     state: enabled
 
 connections:
-- [blocks_multiply_const_vxx_0, '0', blocks_file_sink_0, '0']
+- [blocks_multiply_const_vxx_0, '0', qtgui_freq_sink_x_0, '0']
+- [blocks_multiply_const_vxx_0, '0', qtgui_waterfall_sink_x_0, '0']
 - [blocks_multiply_const_vxx_0, '0', virtual_sink_0, '0']
 - [blocks_sigmf_source_minimal_0, '0', blocks_throttle_0_0, '0']
 - [blocks_throttle_0_0, '0', virtual_sink_0_1, '0']
@@ -1198,9 +1354,9 @@ connections:
 - [soapy_custom_source_0, '0', blocks_multiply_const_vxx_0, '0']
 - [virtual_source_0, '0', fhss_utils_fft_burst_tagger_0, '0']
 - [virtual_source_0, '0', fosphor_qt_sink_c_0, '0']
+- [virtual_source_0_0, '0', blocks_file_sink_0, '0']
 - [virtual_source_0_2, '0', pdu_utils_pdu_quadrature_demod_cf_0, cpdus]
 - [virtual_source_0_2_0, '0', pdu_utils_pdu_align_0, pdu_in]
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.0
