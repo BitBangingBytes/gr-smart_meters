@@ -85,6 +85,7 @@ Deframer_impl::process_gridstream_header(const std::vector<uint8_t>& data, std::
 bool
 Deframer_impl::verify_v5_special_pattern(const std::vector<uint8_t>& data, int offset) 
 {
+    // Match on 12 bits = 111111111110
     if (data[offset] && data[offset+1] && data[offset+2] && data[offset+3] && data[offset+4] && 
         data[offset+5] && data[offset+6] && data[offset+7] && data[offset+8] && data[offset+9] && 
         data[offset+10] && !data[offset+11]) {
