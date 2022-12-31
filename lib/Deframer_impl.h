@@ -27,7 +27,8 @@ private:
      */
     void pdu_handler(pmt::pmt_t pdu);
     int process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset);
-    int check_gridstream_version(const std::vector<uint8_t>& data, std::vector<uint8_t>& out);
+    int process_gridstream_header(const std::vector<uint8_t>& data, std::vector<uint8_t>& out);
+    bool verify_v5_special_pattern(const std::vector<uint8_t>& data, int offset);
 
 
 public:
