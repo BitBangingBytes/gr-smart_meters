@@ -39,8 +39,8 @@ Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debu
  */
 Deframer_impl::~Deframer_impl() {}
 
-uint8_t
-Deframer_impl::parse_byte(const std::vector<uint8_t>& data, int offset) 
+int
+Deframer_impl::process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset) 
 {
     uint8_t byte = 0;
     for (int i = 0; i < 8; i++) {
@@ -50,11 +50,13 @@ Deframer_impl::parse_byte(const std::vector<uint8_t>& data, int offset)
         if (data[offset])
             byte |= 0x80;
     }
-    return byte;
+    out.push_back(byte);
+    offset += 2;
+    return 1;
 }
 
 int
-Deframer_impl::check_gridstream_version(const std::vector<uint8_t>& data) 
+Deframer_impl::check_gridstream_version(const std::vector<uint8_t>& data, std::vector<uint8_t>& out) 
 {
     const uint32_t version4 = 0xFFA0;
     const uint32_t version5 = 0xFFF0;
@@ -68,10 +70,14 @@ Deframer_impl::check_gridstream_version(const std::vector<uint8_t>& data)
         offset += 1;
     }
     if (start_of_frame == version5) {
+        out.push_back(0x80);
+        out.push_back(0xFF);         
         return 5;
     } else if (start_of_frame == version4) {
+        out.push_back(0x00);
+        out.push_back(0xFF);
         return 4;
-    } else {
+    } else {       
         return 0;
     }
 }
@@ -79,9 +85,9 @@ Deframer_impl::check_gridstream_version(const std::vector<uint8_t>& data)
 void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = {};
-    pmt::pmt_t v_data = {};
+    pmt::pmt_t vector_data = {};
     meta = pmt::car(pdu);
-    v_data = pmt::cdr(pdu);
+    vector_data = pmt::cdr(pdu);
 	
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
@@ -90,13 +96,13 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     }
     
     // Add some buffer to the data so we don't move beyond the end checking bit offset's
-    size_t vlen = pmt::length(pmt::cdr(pdu));
-    std::vector<uint8_t> input_data = pmt::u8vector_elements(v_data);
-    input_data.resize(vlen+10);
+    size_t v_data_len = pmt::length(vector_data);
+    std::vector<uint8_t> input_data = pmt::u8vector_elements(vector_data);
+    input_data.resize(v_data_len + 10);
     const std::vector<uint8_t> data = input_data;
 
-    const int header = 2;
-    if ( ((vlen/10) < header) || ((vlen/10) < d_min_length) || ((vlen/10) > d_max_length) ) {
+    const int header_minimum = 2;
+    if ( ((v_data_len/10) < header_minimum) || ((v_data_len/10) < d_min_length) || ((v_data_len/10) > d_max_length) ) {
         return;
     }
     std::vector<uint8_t> out;
@@ -104,61 +110,42 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     fill(out.begin(), out.end(), 0);
 
     int offset = 0;
-    int bytesToProcess = vlen/10;
+    int bytesToProcess = v_data_len / 10;
     int bytesProcessed = 0;
 
-    int gridstream_version = check_gridstream_version(data);
+    int gridstream_version = check_gridstream_version(data, out);
     meta = pmt::dict_add(meta, pmt::mp("GridStream_Version"), pmt::mp(gridstream_version));
-    if (gridstream_version == 4) {
-        out.push_back(0x00);
-        out.push_back(0xFF);
+    if (gridstream_version != 0) {
         offset += 20;
         bytesProcessed += 2;
-        bytesToProcess -= 2;
-    }
-    if (gridstream_version == 5) {
-        out.push_back(0x80);
-        out.push_back(0xFF);
-        offset += 20;
-        bytesProcessed += 2;
-        bytesToProcess -= 2;
     }
 
     uint8_t byte = 0;    
-    int framingErrorCounter = 0;
+    int num_frame_errors = 0;
+    bytesToProcess -= bytesProcessed;
+    // Process Frames
     for (int i = 0; i < bytesToProcess; i++) {
-        bool normalStartStopBitLocation = (!data[offset] && data[offset+9]);
-        bool shiftedStartStopBitLocation = (!data[offset+1] && data[offset+10]);
-        if (normalStartStopBitLocation) {
-            framingErrorCounter = 0;
-            byte = parse_byte(data, offset);
-            out.push_back(byte);
-            bytesProcessed++;
-            offset += 10;
+        bool current_frame = (!data[offset] && data[offset+9]);
+        bool new_frame = (!data[offset+1] && data[offset+10]);
+        if (current_frame) {
+            num_frame_errors = 0;
+            bytesProcessed += process_byte(data, out, offset);
         } 
-        else if (shiftedStartStopBitLocation) {
-            framingErrorCounter += 1;
+        else if (new_frame) {
+            num_frame_errors += 1;
             offset += 1;
             if (gridstream_version == 5) {
-                byte = parse_byte(data, offset);
-                out.push_back(byte);
-                bytesProcessed++;
-                offset += 10;
+                bytesProcessed += process_byte(data, out, offset);
                 if (data[offset] && data[offset+9] && data[offset+10] && !data[offset+11]) {
-                    byte = parse_byte(data, offset);
-                    out.push_back(byte);
-                    bytesProcessed++;
-                    offset += 11;
+                    bytesProcessed += process_byte(data, out, offset);
+                    offset += 1;
                     i++;
                 }
             } else {
-                byte = parse_byte(data, offset);
-                out.push_back(byte);
-                bytesProcessed++;
-                offset += 10;
+                bytesProcessed += process_byte(data, out, offset);
             }
         }
-        if (framingErrorCounter > 1) {
+        if (num_frame_errors > 1) {
             break;
         }
     }

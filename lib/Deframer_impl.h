@@ -26,8 +26,8 @@ private:
      * \param pdu Dict PMT or PDU message passed from the scheduler's message handling.
      */
     void pdu_handler(pmt::pmt_t pdu);
-    uint8_t parse_byte(const std::vector<uint8_t>& data, int offset);
-    int check_gridstream_version(const std::vector<uint8_t>& data);
+    int process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset);
+    int check_gridstream_version(const std::vector<uint8_t>& data, std::vector<uint8_t>& out);
 
 
 public:
