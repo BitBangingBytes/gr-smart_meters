@@ -486,7 +486,7 @@ blocks:
     bus_structure: null
     coordinate: [320, 1020.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: freq_max
   id: parameter
   parameters:
@@ -1426,7 +1426,7 @@ blocks:
     lo_source8: internal
     lo_source9: internal
     maxoutbuf: '0'
-    minoutbuf: 2048*1000*50
+    minoutbuf: 2048*1000*0
     nchan: '1'
     num_mboards: '1'
     otw: ''
@@ -1611,4 +1611,3 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.0
