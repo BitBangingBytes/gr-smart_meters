@@ -113,10 +113,6 @@ std::string time_in_HH_MM_SS_MMM()
 uint16_t
 GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t packet_len, size_t header_len)
 {
-    // Some known CRC Init's below
-    // uint16_t crc = 0x45F8;	// (CoServ CRC)
-    // uint16_t crc = 0x5FD6;	// (Oncor CRC)
-    // uint16_t crc = 0x62C1;	// (Hydro-Quebec CRC)
     uint16_t Poly = 0x1021;
     const int crc_len = 2;
     uint16_t i = header_len; // Skip over header/packet length [eg. 00,FF,2A,55,xx,(xx)]
@@ -133,24 +129,24 @@ GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t pa
 void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
-    pmt::pmt_t v_data = pmt::cdr(pdu);
-	int header_len = 0;
+    pmt::pmt_t vector_data = pmt::cdr(pdu);
 	
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
         return;
     }
-    size_t vlen = pmt::length(pmt::cdr(pdu));
-    const std::vector<uint8_t> data = pmt::u8vector_elements(v_data);
-
+    size_t v_data_len = pmt::length(pmt::cdr(pdu));
     // Packet not large enough, probably noise
-    if (data.size() < 6)
+    if (v_data_len < 6) {
         return;
+    }
+    const std::vector<uint8_t> data = pmt::u8vector_elements(vector_data);
 
-    // Packet decoded 00,FF,message_type,packet_type,packet_len
+    // Packet decode 00,FF,message_type,packet_type,packet_len
+	int header_len = { 0 };
     int packet_type = data[3];
-    int packet_len = 0;
+    int packet_len = { 0 };
     if (packet_type == 0xD2) {
         header_len = 5;
         packet_len = data[4];
@@ -158,10 +154,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         header_len = 6;
         packet_len = data[5];
     } else {
-        packet_len = data.size();
+        packet_len = v_data_len;
     }
 
-    const int min_packet_size = 4;
+    const int min_packet_size = { 4 };
     // Packet self reports too small
     if (packet_len < min_packet_size) {
         return;
@@ -174,8 +170,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         malformed_packet = true;
     }
     
-    int receivedCRC = 0;
-    uint16_t calculatedCRC = 1;
+    int receivedCRC = { 0 };
+    uint16_t calculatedCRC = { 1 };
     if (!malformed_packet) {
         receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
         calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
