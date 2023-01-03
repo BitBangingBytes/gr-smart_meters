@@ -100,34 +100,19 @@ std::string time_in_HH_MM_SS_MMM()
 {
     using namespace std::chrono;
 
-    // get current time
     auto now = system_clock::now();
-
-    // get number of milliseconds for the current second
-    // (remainder after division into seconds)
     auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-
-    // convert to std::time_t in order to convert to std::tm (broken time)
     auto timer = system_clock::to_time_t(now);
-
-    // convert to broken time
     std::tm bt = *std::localtime(&timer);
-
     std::ostringstream oss;
-
     oss << std::put_time(&bt, "%H:%M:%S"); // HH:MM:SS
     oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
-
     return oss.str();
 }
 
 uint16_t
 GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t packet_len, size_t header_len)
 {
-    // Some known CRC Init's below
-    // uint16_t crc = 0x45F8;  // (CoServ CRC)
-    // uint16_t crc = 0x5FD6;  // (Oncor CRC)
-    // uint16_t crc = 0x62C1;  // (Hydro-Quebec CRC)
     uint16_t Poly = 0x1021;
     const int crc_len = 2;
     uint16_t i = header_len; // Skip over header/packet length [eg. 00,FF,2A,55,xx,(xx)]
@@ -144,24 +129,23 @@ GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t pa
 void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
-    pmt::pmt_t v_data = pmt::cdr(pdu);
-    int header_len = 0;
-
+    pmt::pmt_t vector_data = pmt::cdr(pdu);
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
         return;
     }
-    size_t vlen = pmt::length(pmt::cdr(pdu));
-    const std::vector<uint8_t> data = pmt::u8vector_elements(v_data);
-
+    size_t v_data_len = pmt::length(pmt::cdr(pdu));
     // Packet not large enough, probably noise
-    if (data.size() < 6)
+    if (v_data_len < 6) {
         return;
+    }
+    const std::vector<uint8_t> data = pmt::u8vector_elements(vector_data);
 
-    // Packet decoded 00,FF,message_type,packet_type,packet_len
+    // Packet decode 00,FF,message_type,packet_type,packet_len
+	int header_len = { 0 };
     int packet_type = data[3];
-    int packet_len = 0;
+    int packet_len = { 0 };
     if (packet_type == 0xD2) {
         header_len = 5;
         packet_len = data[4];
@@ -169,10 +153,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         header_len = 6;
         packet_len = data[5];
     } else {
-        packet_len = data.size();
+        packet_len = v_data_len;
     }
 
-    const int min_packet_size = 4;
+    const int min_packet_size = { 4 };
     // Packet self reports too small
     if (packet_len < min_packet_size) {
         return;
@@ -184,15 +168,16 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (decoded_packet_size > data.size()) {
         malformed_packet = true;
     }
-
-    int receivedCRC = 0;
-    uint16_t calculatedCRC = 1;
+    
+    int receivedCRC = { 0 };
+    uint16_t calculatedCRC = { 1 };
+    int crc_high_byte = { 2 };
+    int crc_low_byte = { 1 };
     if (!malformed_packet) {
-        receivedCRC = data[packet_len + header_len - 1] | data[packet_len + header_len - 2] << 8;
+        receivedCRC = data[header_len + packet_len - crc_low_byte] | 
+                      data[header_len + packet_len - crc_high_byte] << 8;
         calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
-    }
-
-
+    } 
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
@@ -209,34 +194,21 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             GridStreamMeterSrcID = (char_to_hex(int(data[26]))+char_to_hex(int(data[27]))+
                                     char_to_hex(int(data[28]))+char_to_hex(int(data[29])));
 
-            GridStreamMeterSrcWanID =   (char_to_hex(int(data[13]))+char_to_hex(int(data[14]))+
-                                        char_to_hex(int(data[15]))+char_to_hex(int(data[16]))+
-                                        char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
-
-            GridStreamMeterDstID = "";
-
+            GridStreamMeterSrcWanID = (char_to_hex(int(data[13]))+char_to_hex(int(data[14]))+
+                                       char_to_hex(int(data[15]))+char_to_hex(int(data[16]))+
+                                       char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
+            GridStreamMeterDstID = { "" };
             upTime = data[21 + 2] | data[20 + 2] << 8 | data[19 + 2] << 16 | data[18 + 2] << 24;
         }
         else if (packet_type == 0xD5) {
-            receivedMeterLanSrcID = data[14] |
-                                    data[13] << 8 |
-                                    data[12] << 16 |
-                                    data[11] << 24;
-            receivedMeterLanDstID = data[10] |
-                                    data[9] << 8 |
-                                    data[8] << 16 |
-                                    data[7] << 24;
-            GridStreamMeterSrcID = (char_to_hex(int(data[11]))+
-                                    char_to_hex(int(data[12]))+
-                                    char_to_hex(int(data[13]))+
-                                    char_to_hex(int(data[14])));
-            GridStreamMeterDstID = (char_to_hex(int(data[7]))+
-                                    char_to_hex(int(data[8]))+
-                                    char_to_hex(int(data[9]))+
-                                    char_to_hex(int(data[10])));
+            receivedMeterLanSrcID = data[14] | data[13] << 8 | data[12] << 16 | data[11] << 24;
+            receivedMeterLanDstID = data[10] | data[9] << 8 | data[8] << 16 | data[7] << 24;
+            GridStreamMeterSrcID = (char_to_hex(int(data[11]))+char_to_hex(int(data[12]))+
+                                    char_to_hex(int(data[13]))+char_to_hex(int(data[14])));    
+            GridStreamMeterDstID = (char_to_hex(int(data[7]))+char_to_hex(int(data[8]))+
+                                    char_to_hex(int(data[9]))+char_to_hex(int(data[10])));            
         }
     }
-
     double center_frequency = 0;
     if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
         center_frequency = pmt::to_double(pmt::dict_ref(meta, pmt::intern("center_frequency"), pmt::PMT_NIL));
@@ -249,7 +221,6 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (pmt::dict_has_key(meta, pmt::intern("system_time"))) {
         captured_time = pmt::to_double(pmt::dict_ref(meta, pmt::intern("system_time"), pmt::PMT_NIL));
     }
-
     if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
         (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
         ((d_meterLanDstID == 0) && (d_meterLanSrcID == 0))) &&
