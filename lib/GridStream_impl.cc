@@ -183,6 +183,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     // Packet self reports larger than data we received
     if (decoded_packet_size > data.size()) {
         malformed_packet = true;
+        decoded_packet_size = data.size();
     }
     
     int receivedCRC = 0;
