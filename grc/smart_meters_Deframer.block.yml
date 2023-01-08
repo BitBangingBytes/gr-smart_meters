@@ -23,6 +23,9 @@ parameters:
   options: ['True', 'False']
   default: 'False'
 
+asserts:
+- ${ min_length >= 2 }
+- ${ max_length <= 500 }
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:

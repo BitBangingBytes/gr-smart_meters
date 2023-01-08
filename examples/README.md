@@ -8,6 +8,9 @@ Flowgraph tuned for AirSpy running at 10Msps (910MHz - 920MHz)
 ### GridStream_HackRF.grc
 Flowgraph tuned for HackRF running at 20Msps (905MHz - 925MHz)
 
+### GridStream_BladeRF.grc
+Flowgraph tuned for Nuand BladeRF running at 26Msps (902MHz - 928MHz)
+
 ### GridStream_USRP-B2xx.grc
 Flowgraph tuned for Ettus USRP B2xx running at 26Msps (902MHz - 928MHz)
 
