@@ -19,6 +19,7 @@ class GridStream_impl : public GridStream
 private:
     bool d_crcEnable;
     bool d_debugEnable;
+    bool d_crcColor;
     bool d_timestampEnable;
     bool d_epochEnable;
     bool d_frequencyEnable;
@@ -40,6 +41,7 @@ private:
 public:
     GridStream_impl(bool crcEnable,
 					bool debugEnable,
+                    bool crcColor,
 					bool timestampEnable,
                     bool epochEnable,
 					bool frequencyEnable,

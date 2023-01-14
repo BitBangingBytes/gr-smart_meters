@@ -4,7 +4,7 @@ category: '[smart_meters]'
 
 templates:
   imports: import smart_meters
-  make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${timestampEnable}, ${epochEnable}, ${frequencyEnable}, ${baudrateEnable}, 
+  make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${crcColor}, ${timestampEnable}, ${epochEnable}, ${frequencyEnable}, ${baudrateEnable}, 
                                 ${crcInitialValue}, ${meterLanSrcID}, ${meterLanDstID}, ${packetTypeFilter}, ${packetLengthFilter})
 
 parameters:
@@ -34,6 +34,12 @@ parameters:
   default: '0x23'
 - id: debugEnable
   label: Console Output
+  category: Debug
+  hide: part
+  dtype: enum
+  options: ['True', 'False']
+- id: crcColor
+  label: ASCII Color CRC
   category: Debug
   hide: part
   dtype: enum

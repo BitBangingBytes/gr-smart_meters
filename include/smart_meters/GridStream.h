@@ -32,12 +32,13 @@ public:
      * class. smart_meters::GridStream::make is the public interface for
      * creating new instances.
      */
-    static sptr make(bool     crcEnable,
-                     bool     debugEnable,
-                     bool     timestampEnable,
-                     bool     epochEnable,
-                     bool     frequencyEnable,
-                     bool     baudrateEnable,
+    static sptr make(bool crcEnable,
+                     bool debugEnable,
+                     bool crcColor,  
+                     bool timestampEnable,
+                     bool epochEnable,
+                     bool frequencyEnable,
+                     bool baudrateEnable,
                      uint16_t crcInitialValue,
                      uint32_t meterLanSrcID,
                      uint32_t meterLanDstID,

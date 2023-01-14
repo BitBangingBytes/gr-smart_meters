@@ -24,6 +24,7 @@ namespace smart_meters {
 
 GridStream::sptr GridStream::make(	bool crcEnable,
 									bool debugEnable,
+                                    bool crcColor,
 									bool timestampEnable,
                                     bool epochEnable,
 									bool frequencyEnable,
@@ -35,7 +36,7 @@ GridStream::sptr GridStream::make(	bool crcEnable,
 									uint16_t packetLengthFilter)
 {
     return gnuradio::make_block_sptr<GridStream_impl>(
-        crcEnable, debugEnable, timestampEnable, epochEnable, frequencyEnable, baudrateEnable, 
+        crcEnable, debugEnable, crcColor, timestampEnable, epochEnable, frequencyEnable, baudrateEnable, 
         crcInitialValue, meterLanSrcID, meterLanDstID, packetTypeFilter, packetLengthFilter);
 }
 
@@ -45,6 +46,7 @@ GridStream::sptr GridStream::make(	bool crcEnable,
  */
 GridStream_impl::GridStream_impl(bool crcEnable,
 								 bool debugEnable,
+                                 bool crcColor,
 								 bool timestampEnable,
                                  bool epochEnable,
 								 bool frequencyEnable,
@@ -58,6 +60,7 @@ GridStream_impl::GridStream_impl(bool crcEnable,
           "GridStream", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
       d_crcEnable(crcEnable),
       d_debugEnable(debugEnable),
+      d_crcColor(crcColor),
       d_timestampEnable(timestampEnable),
       d_epochEnable(epochEnable),
       d_frequencyEnable(frequencyEnable),
@@ -232,13 +235,19 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         {
 			if (d_debugEnable) {
 				std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-				if (!(d_crcEnable)) {
+				if (!d_crcEnable && d_crcColor) {
 					if (receivedCRC == calculatedCRC) {
-						std::cout << "\033[38;5;40m[CRC] \033[m";  // Green [CRC] good
+						std::cout << "\033[38;5;40m[CRC: OK] \033[m";  // Green [CRC] good
 					} else {
-						std::cout << "\033[38;5;124m[crc] \033[m";  // Red [crc] bad
+						std::cout << "\033[38;5;124m[CRC:BAD] \033[m";  // Red [crc] bad
 					}
-				}
+				} else if (!d_crcEnable && !d_crcColor) {
+                    if (receivedCRC == calculatedCRC) {
+						std::cout << "[CRC: OK] ";
+					} else {
+						std::cout << "[CRC:BAD] ";
+					}
+                }
 				for (int i = 0; i < decoded_packet_size; i++)
 					{
 					std::cout << std::setw(2) << int(data[i]);
