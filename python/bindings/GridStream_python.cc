@@ -51,7 +51,7 @@ void bind_GridStream(py::module& m)
            py::arg("packetLengthFilter"),
            D(GridStream,make)
         )
-        
+
 
 
 

@@ -15,7 +15,7 @@
  */
 
 
- 
+
  static const char *__doc_gr_smart_meters_GridStream = R"doc()doc";
 
 
@@ -24,4 +24,4 @@
 
  static const char *__doc_gr_smart_meters_GridStream_make = R"doc()doc";
 
-  
+

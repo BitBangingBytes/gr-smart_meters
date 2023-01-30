@@ -25,7 +25,7 @@ Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debu
         "Deframer", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
      d_min_length(min_length),
      d_max_length(max_length),
-     d_debug(debug)   
+     d_debug(debug)
 {
     message_port_register_in(PMTCONSTSTR__PDU_IN);
     set_msg_handler(PMTCONSTSTR__PDU_IN,
@@ -40,7 +40,7 @@ Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debu
 Deframer_impl::~Deframer_impl() {}
 
 int
-Deframer_impl::process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset) 
+Deframer_impl::process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset)
 {
     uint8_t byte = 0;
     for (int i = 0; i < 8; i++) {
@@ -56,7 +56,7 @@ Deframer_impl::process_byte(const std::vector<uint8_t>& data, std::vector<uint8_
 }
 
 int
-Deframer_impl::process_gridstream_header(const std::vector<uint8_t>& data, std::vector<uint8_t>& out) 
+Deframer_impl::process_gridstream_header(const std::vector<uint8_t>& data, std::vector<uint8_t>& out)
 {
     const uint32_t version4 = 0xFFA0;
     const uint32_t version5 = 0xFFF0;
@@ -71,23 +71,23 @@ Deframer_impl::process_gridstream_header(const std::vector<uint8_t>& data, std::
     }
     if (start_of_frame == version5) {
         out.push_back(0x80);
-        out.push_back(0xFF);         
+        out.push_back(0xFF);
         return 5;
     } else if (start_of_frame == version4) {
         out.push_back(0x00);
         out.push_back(0xFF);
         return 4;
-    } else {       
+    } else {
         return 0;
     }
 }
 
 bool
-Deframer_impl::verify_v5_special_pattern(const std::vector<uint8_t>& data, int offset) 
+Deframer_impl::verify_v5_special_pattern(const std::vector<uint8_t>& data, int offset)
 {
     // Match on 12 bits = 111111111110
-    if (data[offset] && data[offset+1] && data[offset+2] && data[offset+3] && data[offset+4] && 
-        data[offset+5] && data[offset+6] && data[offset+7] && data[offset+8] && data[offset+9] && 
+    if (data[offset] && data[offset+1] && data[offset+2] && data[offset+3] && data[offset+4] &&
+        data[offset+5] && data[offset+6] && data[offset+7] && data[offset+8] && data[offset+9] &&
         data[offset+10] && !data[offset+11]) {
 
         return true;
@@ -103,13 +103,13 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     pmt::pmt_t vector_data = {};
     meta = pmt::car(pdu);
     vector_data = pmt::cdr(pdu);
-	
+
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
         return;
     }
-    
+
     // Add some buffer to the data so we don't move beyond the end checking bit offset's
     size_t v_data_len = pmt::length(vector_data);
     std::vector<uint8_t> input_data = pmt::u8vector_elements(vector_data);
@@ -152,7 +152,7 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         if (current_frame) {
             num_frame_errors = 0;
             bytesProcessed += process_byte(data, out, offset);
-        } 
+        }
         else if (new_frame) {
             offset += 1;
             num_frame_errors += 1;
@@ -166,7 +166,7 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
             break;
         }
     }
-    
+
     if (d_debug) {
         std::cout << "GridStream V " << gridstream_version << ": ";
         std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
