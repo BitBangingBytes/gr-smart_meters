@@ -22,21 +22,22 @@
 namespace gr {
 namespace smart_meters {
 
-GridStream::sptr GridStream::make(	bool crcEnable,
-									bool debugEnable,
-                                    bool crcColor,
-									bool timestampEnable,
-                                    bool epochEnable,
-									bool frequencyEnable,
-									bool baudrateEnable,
-									uint16_t crcInitialValue,
-									uint32_t meterLanSrcID,
-									uint32_t meterLanDstID,
-									uint8_t  packetTypeFilter,
-									uint16_t packetLengthFilter)
+GridStream::sptr GridStream::make(
+					bool crcEnable,
+					bool debugEnable,
+					bool crcColor,
+					bool timestampEnable,
+					bool epochEnable,
+					bool frequencyEnable,
+					bool baudrateEnable,
+					uint16_t crcInitialValue,
+					uint32_t meterLanSrcID,
+					uint32_t meterLanDstID,
+					uint8_t  packetTypeFilter,
+					uint16_t packetLengthFilter)
 {
     return gnuradio::make_block_sptr<GridStream_impl>(
-        crcEnable, debugEnable, crcColor, timestampEnable, epochEnable, frequencyEnable, baudrateEnable, 
+        crcEnable, debugEnable, crcColor, timestampEnable, epochEnable, frequencyEnable, baudrateEnable,
         crcInitialValue, meterLanSrcID, meterLanDstID, packetTypeFilter, packetLengthFilter);
 }
 
@@ -44,18 +45,19 @@ GridStream::sptr GridStream::make(	bool crcEnable,
 /*
  * The private constructor
  */
-GridStream_impl::GridStream_impl(bool crcEnable,
-								 bool debugEnable,
-                                 bool crcColor,
-								 bool timestampEnable,
-                                 bool epochEnable,
-								 bool frequencyEnable,
-								 bool baudrateEnable,
-								 uint16_t crcInitialValue,
-								 uint32_t meterLanSrcID,
-								 uint32_t meterLanDstID,
-								 uint8_t  packetTypeFilter,
-								 uint16_t packetLengthFilter)
+GridStream_impl::GridStream_impl(
+					bool crcEnable,
+					bool debugEnable,
+					bool crcColor,
+					bool timestampEnable,
+					bool epochEnable,
+					bool frequencyEnable,
+					bool baudrateEnable,
+					uint16_t crcInitialValue,
+					uint32_t meterLanSrcID,
+					uint32_t meterLanDstID,
+					uint8_t  packetTypeFilter,
+					uint16_t packetLengthFilter)
     : gr::block(
           "GridStream", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
       d_crcEnable(crcEnable),
@@ -133,7 +135,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
     pmt::pmt_t vector_data = pmt::cdr(pdu);
-	
+
     // make sure PDU data is formed properly
     if (!(pmt::is_pdu(pdu))) {
         GR_LOG_WARN(d_logger, "received unexpected PMT (non-pdu)");
@@ -173,28 +175,28 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         malformed_packet = true;
         decoded_packet_size = data.size();
     }
-    
+
     int receivedCRC = { 0 };
     uint16_t calculatedCRC = { 1 };
     int crc_high_byte = { 2 };
     int crc_low_byte = { 1 };
     if (!malformed_packet) {
-        receivedCRC = data[header_len + packet_len - crc_low_byte] | 
+        receivedCRC = data[header_len + packet_len - crc_low_byte] |
                       data[header_len + packet_len - crc_high_byte] << 8;
         calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
-    } 
-    
+    }
+
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
     int upTime{ 0 };
 	std::string GridStreamMeterSrcID{ "" };
 	std::string GridStreamMeterSrcWanID{ "" };
 	std::string GridStreamMeterDstID{ "" };
-	
+
     if (receivedCRC == calculatedCRC) {
         if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
-            
-            receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 | 
+
+            receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 |
                                     data[25 + 2] << 16 | data[24 + 2] << 24;
 
             GridStreamMeterSrcID = (char_to_hex(int(data[26]))+char_to_hex(int(data[27]))+
@@ -205,14 +207,14 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                                        char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
             GridStreamMeterDstID = { "" };
             upTime = data[21 + 2] | data[20 + 2] << 8 | data[19 + 2] << 16 | data[18 + 2] << 24;
-        } 
+        }
         else if (packet_type == 0xD5) {
             receivedMeterLanSrcID = data[14] | data[13] << 8 | data[12] << 16 | data[11] << 24;
             receivedMeterLanDstID = data[10] | data[9] << 8 | data[8] << 16 | data[7] << 24;
             GridStreamMeterSrcID = (char_to_hex(int(data[11]))+char_to_hex(int(data[12]))+
-                                    char_to_hex(int(data[13]))+char_to_hex(int(data[14])));    
+                                    char_to_hex(int(data[13]))+char_to_hex(int(data[14])));
             GridStreamMeterDstID = (char_to_hex(int(data[7]))+char_to_hex(int(data[8]))+
-                                    char_to_hex(int(data[9]))+char_to_hex(int(data[10])));            
+                                    char_to_hex(int(data[9]))+char_to_hex(int(data[10])));
         }
     }
     double center_frequency = 0;
@@ -231,54 +233,54 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
         ((d_meterLanDstID == 0) && (d_meterLanSrcID == 0))) &&
         ((packet_len == d_packetLengthFilter) || (d_packetLengthFilter == 0)) &&
-        ((packet_type == d_packetTypeFilter) || (d_packetTypeFilter == 0))) 
+        ((packet_type == d_packetTypeFilter) || (d_packetTypeFilter == 0)))
         {
-			if (d_debugEnable) {
-				std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
-				if (!d_crcEnable && d_crcColor) {
-					if (receivedCRC == calculatedCRC) {
-						std::cout << "\033[38;5;40m[CRC: OK] \033[m";  // Green [CRC] good
-					} else {
-						std::cout << "\033[38;5;124m[CRC:BAD] \033[m";  // Red [crc] bad
-					}
-				} else if (!d_crcEnable && !d_crcColor) {
+            if (d_debugEnable) {
+                std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
+                if (!d_crcEnable && d_crcColor) {
                     if (receivedCRC == calculatedCRC) {
-						std::cout << "[CRC: OK] ";
-					} else {
-						std::cout << "[CRC:BAD] ";
-					}
+                        std::cout << "\033[38;5;40m[CRC: OK] \033[m";  // Green [CRC] good
+                    } else {
+                        std::cout << "\033[38;5;124m[CRC:BAD] \033[m";  // Red [crc] bad
+                    }
+                } else if (!d_crcEnable && !d_crcColor) {
+                    if (receivedCRC == calculatedCRC) {
+                        std::cout << "[CRC: OK] ";
+                    } else {
+                        std::cout << "[CRC:BAD] ";
+                    }
                 }
-				for (int i = 0; i < decoded_packet_size; i++)
-					{
-					std::cout << std::setw(2) << int(data[i]);
-					}
-				if (d_baudrateEnable) {
-					std::cout << "\tBaudrate: " << std::dec << std::fixed << std::setprecision(0) << ((symbol_rate+25)/100)*100;			
-				}
-				if (d_frequencyEnable) {
-					std::cout << "\tFreq: " << std::dec << std::fixed << std::setprecision(1) << floor(center_frequency/100000)/10;
-				}
+                for (int i = 0; i < decoded_packet_size; i++)
+                    {
+                    std::cout << std::setw(2) << int(data[i]);
+                    }
+                if (d_baudrateEnable) {
+                    std::cout << "\tBaudrate: " << std::dec << std::fixed << std::setprecision(0) << ((symbol_rate+25)/100)*100;
+                }
+                if (d_frequencyEnable) {
+                    std::cout << "\tFreq: " << std::dec << std::fixed << std::setprecision(1) << floor(center_frequency/100000)/10;
+                }
                 if (d_epochEnable) {
                     std::cout << "\t" << time_in_HH_MM_SS_MMM();
                 }
-				if (d_timestampEnable) {
+                if (d_timestampEnable) {
                     std::cout << "\t" << std::ctime(&captured_time);
-				} else {
-					std::cout << "\n";
-				}
-			}
-			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
-			meta = pmt::dict_add(meta, pmt::mp("Gridstream_WanSrcID"), pmt::mp(GridStreamMeterSrcWanID));
-			meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));		
-			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
-			meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
-			
-			message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
-			return;
-		} 
-		else {
-			return;
-		}
+                } else {
+                    std::cout << "\n";
+                }
+            }
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_WanSrcID"), pmt::mp(GridStreamMeterSrcWanID));
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
+
+            message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
+            return;
+        }
+        else {
+            return;
+        }
 }
 
 } /* namespace smart_meters */

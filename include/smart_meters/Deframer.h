@@ -685,7 +685,7 @@ namespace gr {
 namespace smart_meters {
 
 /*!
- * \brief 
+ * \brief
  * \ingroup smart_meters
  *
  */
@@ -695,7 +695,7 @@ public:
     typedef std::shared_ptr<Deframer> sptr;
 
     /*!
-     * \brief 
+     * \brief
      */
     static sptr make(uint16_t min_length, uint16_t max_length, bool debug);
 };
