@@ -13,3 +13,5 @@ Dallas, TX    |   Oncor               |   CRC = 0x5FD6
 Quebec, CAN   |   Hydro-Quebec        |   CRC = 0x62C1
 
 Seattle, WA   |   Seattle City Light  |   CRC = 0x23D1
+
+Santa Barbara, CA   |   Southern California Edison   |   CRC = 0x2C22
