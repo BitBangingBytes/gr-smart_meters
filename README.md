@@ -17,3 +17,5 @@ Seattle, WA   |   Seattle City Light  |   CRC = 0x23D1
 Santa Barbara, CA   |   Southern California Edison   |   CRC = 0x2C22
 
 Washington   |   Puget Sound Energy   |   CRC = 0x142A
+
+Kansas City  |   Evergy               |   CRC = 0xE623
