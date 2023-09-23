@@ -21,3 +21,5 @@ Washington   |   Puget Sound Energy   |   CRC = 0x142A
 Milwaukee, WI   |   We Energies   |   CRC = 0x4E2D
 
 Kansas City  |   Evergy               |   CRC = 0xE623
+
+Phoenix, AZ  |   APS                  |   CRC = 0x1D65
