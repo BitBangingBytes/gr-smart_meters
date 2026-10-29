@@ -176,14 +176,42 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         decoded_packet_size = data.size();
     }
 
+    // ---- CRC applicability (reverse-engineering finding, 2026-10) ------------------
+    // Only base-0x55 frames (0x55 broadcast beacon, 0xD5 addressed) carry a link CRC-16
+    // that the meter's receiver actually checks (M16C firmware RX state 5). Routed
+    // point-to-point frames (0xD2/0x52) and format-0x17 frames (0x25/0xA5) are handled by
+    // RX state 6, which SKIPS the CRC step entirely -- no CRC is appended on TX or verified
+    // on RX. A CRC compare on those types is meaningless, so we must NOT flag them BAD (and
+    // must not drop them): we report CRC state "NA" and fall back to a structural check.
+    bool crc_applies = (packet_type == 0x55) || (packet_type == 0xD5);
+
     int receivedCRC = { 0 };
     uint16_t calculatedCRC = { 1 };
     int crc_high_byte = { 2 };
     int crc_low_byte = { 1 };
-    if (!malformed_packet) {
-        receivedCRC = data[header_len + packet_len - crc_low_byte] |
-                      data[header_len + packet_len - crc_high_byte] << 8;
-        calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
+    // crc_state: 0 = NA (type not CRC-protected), 1 = OK (match), 2 = BAD (mismatch/unverifiable).
+    int crc_state = 0;
+    // struct_ok: structural validity used to admit CRC-NA types we cannot CRC-check but can
+    // sanity-check. For CRC-checkable types the gate uses crc_state, not struct_ok.
+    bool struct_ok = !malformed_packet;
+    if (crc_applies) {
+        // 0x55/0xD5 are CRC-protected: always OK or BAD, never NA. A malformed/truncated
+        // frame (CRC bytes not captured) could not be verified, so it did not pass -> BAD.
+        if (!malformed_packet) {
+            receivedCRC = data[header_len + packet_len - crc_low_byte] |
+                          data[header_len + packet_len - crc_high_byte] << 8;
+            calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
+        }
+        crc_state = (!malformed_packet && (receivedCRC == calculatedCRC)) ? 1 : 2;
+    } else if (!malformed_packet) {
+        crc_state = 0;  // NA: not CRC-protected by the link layer
+        if (packet_type == 0xD2) {
+            // Routed D2 self-reported length (firmware RX state 4) is bounded 4..0xF4.
+            struct_ok = (packet_len >= 4) && (packet_len <= 0xF4);
+        } else {
+            // 0x25/0xA5, 0x81, unknown: layout not fully modelled; admit on framing only.
+            struct_ok = true;
+        }
     }
 
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
@@ -193,7 +221,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 	std::string GridStreamMeterSrcWanID{ "" };
 	std::string GridStreamMeterDstID{ "" };
 
-    if (receivedCRC == calculatedCRC) {
+    if (crc_state == 1) {   // CRC-OK 0x55/0xD5 only
         if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
 
             receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 |
@@ -229,7 +257,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (pmt::dict_has_key(meta, pmt::intern("system_time"))) {
         captured_time = pmt::to_double(pmt::dict_ref(meta, pmt::intern("system_time"), pmt::PMT_NIL));
     }
-    if (((receivedCRC == calculatedCRC) || !(d_crcEnable)) &&
+    // 55/D5 pass on CRC-OK; CRC-NA types (D2 etc.) pass on structural validity instead
+    // of being dropped. !d_crcEnable still passes everything through (CRC filter off).
+    bool passes_validity = crc_applies ? (crc_state == 1) : struct_ok;
+    if (((passes_validity) || !(d_crcEnable)) &&
         (((receivedMeterLanSrcID == d_meterLanSrcID) || (receivedMeterLanDstID == d_meterLanDstID)) ||
         ((d_meterLanDstID == 0) && (d_meterLanSrcID == 0))) &&
         ((packet_len == d_packetLengthFilter) || (d_packetLengthFilter == 0)) &&
@@ -238,16 +269,20 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             if (d_debugEnable) {
                 std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
                 if (!d_crcEnable && d_crcColor) {
-                    if (receivedCRC == calculatedCRC) {
-                        std::cout << "\033[38;5;40m[CRC: OK] \033[m";  // Green [CRC] good
+                    if (crc_state == 1) {
+                        std::cout << "\033[38;5;40m[CRC: OK] \033[m";   // Green: CRC match
+                    } else if (crc_state == 2) {
+                        std::cout << "\033[38;5;124m[CRC:BAD] \033[m";  // Red: CRC mismatch
                     } else {
-                        std::cout << "\033[38;5;124m[CRC:BAD] \033[m";  // Red [crc] bad
+                        std::cout << "\033[38;5;220m[CRC: NA] \033[m";  // Yellow: no link CRC (routed)
                     }
                 } else if (!d_crcEnable && !d_crcColor) {
-                    if (receivedCRC == calculatedCRC) {
+                    if (crc_state == 1) {
                         std::cout << "[CRC: OK] ";
-                    } else {
+                    } else if (crc_state == 2) {
                         std::cout << "[CRC:BAD] ";
+                    } else {
+                        std::cout << "[CRC: NA] ";
                     }
                 }
                 for (int i = 0; i < decoded_packet_size; i++)
@@ -274,6 +309,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));
             meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
             meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
+            meta = pmt::dict_add(meta, pmt::mp("Gridstream_CRCState"),
+                                 pmt::mp(std::string(crc_state == 1 ? "OK" : crc_state == 2 ? "BAD" : "NA")));
 
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
