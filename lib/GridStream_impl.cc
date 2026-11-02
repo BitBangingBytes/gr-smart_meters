@@ -188,17 +188,13 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     std::vector<uint8_t> blk_results, blk_payload;
     if (block_mode) {
         const size_t BLK = 80;
-        // Block boundaries come from the FIRMWARE LAYOUT, not from searching for "00 FF": with no
-        // inter-burst gap the Deframer decodes straight through the re-sync, and a boundary is then
-        // bit-identical to a 00 FF pair inside ciphertext. After a non-last block (hdr, 80 data, lo)
-        // the next burst starts right away, or after one 04 tail byte (TX state 0x18). The Deframer's
-        // GridStream_Bursts (multi_sync) marks bursts it re-synced on after a real gap; those are
-        // used only to re-align when the layout position does not hold a 00|80 FF.
-        std::vector<uint32_t> resync;
-        if (pmt::dict_has_key(meta, pmt::intern("GridStream_Bursts"))) {
-            resync = pmt::u32vector_elements(
-                pmt::dict_ref(meta, pmt::intern("GridStream_Bursts"), pmt::PMT_NIL));
-        }
+        // Block boundaries come from the FIRMWARE LAYOUT ONLY, never from searching for "00 FF" or
+        // from the Deframer's GridStream_Bursts offsets: with no inter-burst gap the Deframer decodes
+        // straight through the re-sync, so a boundary is bit-identical to a 00 FF pair inside
+        // ciphertext. Trusting those offsets fabricates phantom blocks (a 96 B PDU -> 160 B payload).
+        // After a non-last block (hdr, 80 data, lo) the next block begins right away, or after one 04
+        // tail byte (TX state 0x18). An 80-byte-block transmission with no dropped burst needs nothing
+        // more; a genuinely dropped burst just fails the block CRC, which is the correct outcome.
         auto is_sync = [&](size_t at) {
             return at + 2 < data.size() && (data[at] == 0x00 || data[at] == 0x80) &&
                    data[at + 1] == 0xFF;
@@ -214,11 +210,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             } else if (nx < data.size() && data[nx] == 0x04 && is_sync(nx + 1)) {
                 st = nx + 1;                                 // 04 tail present
             } else {
-                size_t r = 0;                                // re-align on a real gap re-sync
-                for (uint32_t x : resync)
-                    if (x > st + 3) { r = x; break; }
-                if (r == 0) break;
-                st = r;
+                break;
             }
         }
         for (size_t i = 0; i < starts.size(); i++) {
@@ -231,9 +223,13 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             bool ok = false;
             size_t dlen = 0;
             if (!last) {
+                if (s0 + 3 + BLK >= e0) {        // truncated: the 80 data bytes + lo are not all here
+                    blk_count++;
+                    blk_results.push_back(0);
+                    break;                       // no CRC, no payload (matches the Python reference)
+                }
                 dlen = BLK;
-                if (s0 + 3 + BLK < e0)
-                    ok = block_crc_ok(hdr, data, s0 + 3, BLK, data[s0 + 3 + BLK]);
+                ok = block_crc_ok(hdr, data, s0 + 3, BLK, data[s0 + 3 + BLK]);
             } else {
                 dlen = e0 - 1 - (s0 + 3);
                 ok = block_crc_ok(hdr, data, s0 + 3, dlen, data[e0 - 1]);
