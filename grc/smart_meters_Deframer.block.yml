@@ -4,7 +4,7 @@ category: '[smart_meters]'
 
 templates:
   imports: import smart_meters
-  make: smart_meters.Deframer(${min_length}, ${max_length}, ${debug})
+  make: smart_meters.Deframer(${min_length}, ${max_length}, ${debug}, ${multi_sync})
 
 parameters:
 - id: min_length
@@ -15,6 +15,12 @@ parameters:
   label: Max length
   dtype: int
   default: 300
+- id: multi_sync
+  label: Multi-burst (0x81)
+  dtype: enum
+  options: ['True', 'False']
+  default: 'False'
+  hide: part
 - id: debug
   label: Console Output
   category: Debug
@@ -25,7 +31,7 @@ parameters:
 
 asserts:
 - ${ min_length >= 2 }
-- ${ max_length <= 500 }
+- ${ max_length <= 2000 }
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
@@ -45,6 +51,10 @@ outputs:
 
 documentation: |-
     GridStream Deframer Block:
+
+    Multi-burst (0x81): when True, re-detect the FFA0/FFF0 sync after every burst so a block-mode
+    long packet (N bursts of 00 FF hdr data[80] lo [04]) is deframed whole; adds meta
+    GridStream_Bursts (byte offset of each burst). Use max_length >= 1400 for 16-block transfers.
     
     Takes in unpacked bits (00, 01, 00), and outputs PDU binary blobs. 
     10 unpacked bytes input result in one packed byte output as the start/stop bits are checked for validity and stripped off.

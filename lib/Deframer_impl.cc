@@ -12,20 +12,21 @@
 namespace gr {
 namespace smart_meters {
 
-Deframer::sptr Deframer::make(uint16_t min_length, uint16_t max_length, bool debug)
+Deframer::sptr Deframer::make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync)
 {
-    return gnuradio::make_block_sptr<Deframer_impl>(min_length, max_length, debug);
+    return gnuradio::make_block_sptr<Deframer_impl>(min_length, max_length, debug, multi_sync);
 }
 
 /*
  * The private constructor
  */
-Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug)
+Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync)
     : gr::block(
         "Deframer", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
      d_min_length(min_length),
      d_max_length(max_length),
-     d_debug(debug)
+     d_debug(debug),
+     d_multi_sync(multi_sync)
 {
     message_port_register_in(PMTCONSTSTR__PDU_IN);
     set_msg_handler(PMTCONSTSTR__PDU_IN,
@@ -97,6 +98,58 @@ Deframer_impl::verify_v5_special_pattern(const std::vector<uint8_t>& data, int o
 }
 
 
+// 20-bit sync value at a bit offset, computed exactly like process_gridstream_header().
+uint32_t
+Deframer_impl::sync_value_at(const std::vector<uint8_t>& data, int offset)
+{
+    uint32_t sof = 0;
+    for (int i = 0; i < 20; i++) {
+        sof >>= 1;
+        if (data[offset + i])
+            sof |= 0x8000;
+    }
+    return sof;
+}
+
+// Deframe ONE burst starting at bit `offset` (just after its 20-bit sync), with the same UART
+// start/stop and v5 special-pattern rules as the main loop, but bounded by bits and stopping at
+// the first point where neither alignment is valid (the inter-burst gap). Returns bytes added.
+int
+Deframer_impl::decode_burst(const std::vector<uint8_t>& data, std::vector<uint8_t>& out,
+                            int& offset, int end_bits, int version)
+{
+    int added = 0;
+    int num_frame_errors = 0;
+    bool v5_special = false;
+    while (offset + 10 <= end_bits) {
+        if (v5_special) {
+            v5_special = false;
+            added += process_byte(data, out, offset);
+            offset += 1;
+            continue;
+        }
+        bool current_frame = (!data[offset] && data[offset + 9]);
+        bool new_frame = (!data[offset + 1] && data[offset + 10]);
+        if (current_frame) {
+            num_frame_errors = 0;
+            added += process_byte(data, out, offset);
+        } else if (new_frame) {
+            offset += 1;
+            num_frame_errors += 1;
+            added += process_byte(data, out, offset);
+            if (version == 5) {
+                v5_special = verify_v5_special_pattern(data, offset);
+            }
+        } else {
+            break;
+        }
+        if (num_frame_errors > 1) {
+            break;
+        }
+    }
+    return added;
+}
+
 void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = {};
@@ -167,6 +220,34 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
         }
     }
 
+    // ---- multi-sync continuation (0x81 block-mode long packets) -------------------------
+    // A block-mode transmission is N bursts, each "00 FF hdr data lo [04]" with its own sync,
+    // grouped by the burst tagger into ONE PDU. The loop above stops at the first inter-burst
+    // gap; here we re-detect FFA0/FFF0 in the remaining bits and keep deframing every burst.
+    // Burst start offsets are reported so downstream never has to search the bytes for "00 FF"
+    // (which can occur inside ciphertext). See docs/0x81_Block_Mode_CRC.md.
+    std::vector<uint32_t> burst_starts;
+    if (d_multi_sync && gridstream_version != 0) {
+        burst_starts.push_back(0);
+        const int end_bits = (int)v_data_len;
+        int p = offset;
+        while (p + 20 + 10 <= end_bits) {
+            uint32_t sof = sync_value_at(data, p);
+            int ver = (sof == 0xFFF0) ? 5 : (sof == 0xFFA0) ? 4 : 0;
+            if (ver == 0) {
+                p += 1;
+                continue;
+            }
+            burst_starts.push_back((uint32_t)bytesProcessed);
+            out.push_back(ver == 5 ? 0x80 : 0x00);
+            out.push_back(0xFF);
+            bytesProcessed += 2;
+            int boff = p + 20;
+            bytesProcessed += decode_burst(data, out, boff, end_bits, ver);
+            p = (boff > p + 20) ? boff : p + 20;
+        }
+    }
+
     if (d_debug) {
         std::cout << "GridStream V " << gridstream_version << ": ";
         std::cout << std::setfill('0') << std::hex << std::setw(2) << std::uppercase;
@@ -179,6 +260,10 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     out.resize(bytesProcessed);
     if (out.size() > 0) {
         meta = pmt::dict_add(meta, pmt::mp("GridStream_Version"), pmt::mp(gridstream_version));
+        if (d_multi_sync && !burst_starts.empty()) {
+            meta = pmt::dict_add(meta, pmt::mp("GridStream_Bursts"),
+                                 pmt::init_u32vector(burst_starts.size(), burst_starts));
+        }
         message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(out.size(), out))));
     }
     return;

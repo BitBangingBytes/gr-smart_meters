@@ -20,6 +20,7 @@ private:
     uint16_t d_min_length;
     uint16_t d_max_length;
     bool d_debug;
+    bool d_multi_sync;
     /*!
      * \brief Message handler for input messages
      *
@@ -29,10 +30,13 @@ private:
     int process_byte(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset);
     int process_gridstream_header(const std::vector<uint8_t>& data, std::vector<uint8_t>& out);
     bool verify_v5_special_pattern(const std::vector<uint8_t>& data, int offset);
+    uint32_t sync_value_at(const std::vector<uint8_t>& data, int offset);
+    int decode_burst(const std::vector<uint8_t>& data, std::vector<uint8_t>& out, int& offset,
+                     int end_bits, int version);
 
 
 public:
-    Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug);
+    Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync);
     ~Deframer_impl();
 
 };

@@ -697,7 +697,12 @@ public:
     /*!
      * \brief
      */
-    static sptr make(uint16_t min_length, uint16_t max_length, bool debug);
+    /*!
+     * \param multi_sync  re-detect the FFA0/FFF0 sync after each burst and keep deframing, so a
+     *                    multi-burst transmission (0x81 block-mode long packet) is recovered whole.
+     *                    Adds meta "GridStream_Bursts" (u32vector: byte offset of each burst's 00/80 FF).
+     */
+    static sptr make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync = false);
 };
 
 } // namespace smart_meters

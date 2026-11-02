@@ -30,6 +30,7 @@ private:
     uint8_t  d_packetTypeFilter;
     uint16_t d_packetLengthFilter;
     uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size, size_t header);
+    bool block_crc_ok(uint8_t hdr, const std::vector<uint8_t>& data, size_t from, size_t n, uint8_t lo);
 
     /*!
      * \brief Message handler for input messages

@@ -131,6 +131,35 @@ GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t pa
     return crc;
 }
 
+static uint16_t reflect16(uint16_t x)
+{
+    uint16_t r = 0;
+    for (int i = 0; i < 16; i++) {
+        r = (r << 1) | (x & 1);
+        x >>= 1;
+    }
+    return r;
+}
+
+// 0x81 block-mode CRC10 (M16C RX state 0xE, df066/df096). The M16C HW CRC peripheral (reflected
+// CCITT fed bit-reversed bytes, seed reflect16(init)) equals reflect16(MSB-first CRC16(init)), so
+// the existing crc16() is reused. Form 1 = CRC over data; form 2 (what captured senders use) =
+// CRC over data + (hdr & 0xF8). Check: (crc & 0x3FF) == ((hdr & 3) << 8) | lo.
+bool GridStream_impl::block_crc_ok(uint8_t hdr, const std::vector<uint8_t>& data, size_t from,
+                                   size_t n, uint8_t lo)
+{
+    if (from + n > data.size())
+        return false;
+    const uint16_t want = (uint16_t)(((hdr & 3) << 8) | lo);
+    std::vector<uint8_t> v(data.begin() + from, data.begin() + from + n);
+    uint16_t c1 = crc16(d_crcInitialValue, v, v.size() + 2, 0);
+    if ((reflect16(c1) & 0x3FF) == want)
+        return true;                                   // form 1
+    v.push_back(hdr & 0xF8);
+    uint16_t c2 = crc16(d_crcInitialValue, v, v.size() + 2, 0);
+    return (reflect16(c2) & 0x3FF) == want;            // form 2
+}
+
 void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
 {
     pmt::pmt_t meta = pmt::car(pdu);
@@ -147,6 +176,84 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         return;
     }
     const std::vector<uint8_t> data = pmt::u8vector_elements(vector_data);
+
+    // ---- 0x81 block-mode long packet (docs/0x81_Block_Mode_CRC.md) -----------------------
+    // Each burst: [00|80] FF hdr data[L] lo [04];  hdr = (k<<3) | (last<<2) | crc[9:8];
+    // L = 80 except the last block (its length comes from the handshake, so it ends at lo =
+    // the last complete byte; the 04 tail is almost never on air).
+    const bool block_mode = (data[2] != 0x2A) && !(data[2] & 0x80) && ((data[2] >> 3) == 0) &&
+                            (data[3] == 0x81);
+    int blk_count = 0, blk_ok = 0;
+    bool blk_complete = false;
+    std::vector<uint8_t> blk_results, blk_payload;
+    if (block_mode) {
+        const size_t BLK = 80;
+        // Block boundaries come from the FIRMWARE LAYOUT, not from searching for "00 FF": with no
+        // inter-burst gap the Deframer decodes straight through the re-sync, and a boundary is then
+        // bit-identical to a 00 FF pair inside ciphertext. After a non-last block (hdr, 80 data, lo)
+        // the next burst starts right away, or after one 04 tail byte (TX state 0x18). The Deframer's
+        // GridStream_Bursts (multi_sync) marks bursts it re-synced on after a real gap; those are
+        // used only to re-align when the layout position does not hold a 00|80 FF.
+        std::vector<uint32_t> resync;
+        if (pmt::dict_has_key(meta, pmt::intern("GridStream_Bursts"))) {
+            resync = pmt::u32vector_elements(
+                pmt::dict_ref(meta, pmt::intern("GridStream_Bursts"), pmt::PMT_NIL));
+        }
+        auto is_sync = [&](size_t at) {
+            return at + 2 < data.size() && (data[at] == 0x00 || data[at] == 0x80) &&
+                   data[at + 1] == 0xFF;
+        };
+        std::vector<uint32_t> starts;
+        size_t st = 0;
+        while (st + 3 < data.size()) {
+            starts.push_back((uint32_t)st);
+            if (data[st + 2] & 0x04) break;                  // last block
+            size_t nx = st + 3 + BLK + 1;                    // just after lo
+            if (is_sync(nx)) {
+                st = nx;
+            } else if (nx < data.size() && data[nx] == 0x04 && is_sync(nx + 1)) {
+                st = nx + 1;                                 // 04 tail present
+            } else {
+                size_t r = 0;                                // re-align on a real gap re-sync
+                for (uint32_t x : resync)
+                    if (x > st + 3) { r = x; break; }
+                if (r == 0) break;
+                st = r;
+            }
+        }
+        for (size_t i = 0; i < starts.size(); i++) {
+            size_t s0 = starts[i];
+            size_t e0 = (i + 1 < starts.size()) ? starts[i + 1] : data.size();
+            if (s0 + 4 > e0 || e0 > data.size()) break;
+            uint8_t hdr = data[s0 + 2];
+            if ((hdr & 0x80) || (size_t)(hdr >> 3) != i) break;   // RX rejects bit7; order
+            bool last = hdr & 0x04;
+            bool ok = false;
+            size_t dlen = 0;
+            if (!last) {
+                dlen = BLK;
+                if (s0 + 3 + BLK < e0)
+                    ok = block_crc_ok(hdr, data, s0 + 3, BLK, data[s0 + 3 + BLK]);
+            } else {
+                dlen = e0 - 1 - (s0 + 3);
+                ok = block_crc_ok(hdr, data, s0 + 3, dlen, data[e0 - 1]);
+                if (!ok && data[e0 - 1] == 0x04 && e0 - 2 > s0 + 3) {   // tail was captured
+                    dlen = e0 - 2 - (s0 + 3);
+                    ok = block_crc_ok(hdr, data, s0 + 3, dlen, data[e0 - 2]);
+                }
+            }
+            blk_count++;
+            blk_ok += ok ? 1 : 0;
+            blk_results.push_back(ok ? 1 : 0);
+            if (s0 + 3 + dlen <= data.size())
+                blk_payload.insert(blk_payload.end(), data.begin() + s0 + 3,
+                                   data.begin() + s0 + 3 + dlen);
+            if (last) {
+                blk_complete = true;
+                break;
+            }
+        }
+    }
 
     // Packet decode 00,FF,message_type,packet_type,packet_len
 	int header_len = { 0 };
@@ -183,7 +290,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     // RX state 6, which SKIPS the CRC step entirely -- no CRC is appended on TX or verified
     // on RX. A CRC compare on those types is meaningless, so we must NOT flag them BAD (and
     // must not drop them): we report CRC state "NA" and fall back to a structural check.
-    bool crc_applies = (packet_type == 0x55) || (packet_type == 0xD5);
+    bool crc_applies = (packet_type == 0x55) || (packet_type == 0xD5) || block_mode;
 
     int receivedCRC = { 0 };
     uint16_t calculatedCRC = { 1 };
@@ -197,12 +304,17 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (crc_applies) {
         // 0x55/0xD5 are CRC-protected: always OK or BAD, never NA. A malformed/truncated
         // frame (CRC bytes not captured) could not be verified, so it did not pass -> BAD.
+        if (block_mode) {
+            // 0x81: OK only if every block passes AND the last block was received.
+            crc_state = (blk_count > 0 && blk_ok == blk_count && blk_complete) ? 1 : 2;
+        } else {
         if (!malformed_packet) {
             receivedCRC = data[header_len + packet_len - crc_low_byte] |
                           data[header_len + packet_len - crc_high_byte] << 8;
             calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
         }
         crc_state = (!malformed_packet && (receivedCRC == calculatedCRC)) ? 1 : 2;
+        }
     } else if (!malformed_packet) {
         crc_state = 0;  // NA: not CRC-protected by the link layer
         if (packet_type == 0xD2) {
@@ -285,6 +397,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                         std::cout << "[CRC: NA] ";
                     }
                 }
+                if (block_mode) {
+                    std::cout << "[0x81 blocks " << std::dec << blk_ok << "/" << blk_count
+                              << (blk_complete ? "" : " INCOMPLETE") << "] " << std::hex;
+                }
                 for (int i = 0; i < decoded_packet_size; i++)
                     {
                     std::cout << std::setw(2) << int(data[i]);
@@ -312,6 +428,16 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             meta = pmt::dict_add(meta, pmt::mp("Gridstream_CRCState"),
                                  pmt::mp(std::string(crc_state == 1 ? "OK" : crc_state == 2 ? "BAD" : "NA")));
 
+            if (block_mode) {
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlockMode"), pmt::PMT_T);
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Blocks"), pmt::mp(blk_count));
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlocksOK"), pmt::mp(blk_ok));
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Complete"), pmt::from_bool(blk_complete));
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlockCRC"),
+                                     pmt::init_u8vector(blk_results.size(), blk_results));
+                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Payload"),
+                                     pmt::init_u8vector(blk_payload.size(), blk_payload));
+            }
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
         }
