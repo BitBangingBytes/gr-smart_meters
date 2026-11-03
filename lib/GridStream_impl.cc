@@ -353,7 +353,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     std::string gsSrc, gsDst, gsWan, gsProto, gsFType, gsClass;
     int  gsOpcode{ -1 }, gsFrameId{ -1 }, gsColor{ -1 };
     int  gsRegTs{ 0 }, gsStatusSeq{ -1 }, gsStatusFlags{ -1 }, gsHopMs{ -1 }, gsD2Op{ -1 };
-    bool gsBcast{ false }, gsD2Advert{ false }, gsHaveGps{ false };
+    int  gsCtOff{ -1 }, gsCtLen{ -1 };             // 0x81 ciphertext span within gs_payload
+    bool gsBcast{ false }, gsD2Advert{ false }, gsHaveGps{ false }, gsEnc{ false };
     double gsLat{ 0 }, gsLon{ 0 };
     int  gsVer = (data[0] == 0x80) ? 5 : (data[0] == 0x00 ? 4 : 0);
 
@@ -377,6 +378,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         gsColor = int(V & 0x1F); gsHaveGps = true; };
     auto protoName = [](int p) -> std::string {    // vendor ProtocolType (opcode & 0xFC)
         switch (p) { case 0x00: return "Null"; case 0x08: return "Test"; case 0x20: return "Tickle";
+            case 0x28: return "Data";              // meter-firmware Data base (this collector build uses 0xC0)
             case 0x30: return "Sync"; case 0x40: return "Timestamp"; case 0x44: return "TimestampInq";
             case 0x50: return "LinkInfo"; case 0x54: return "LinkInfoInq"; case 0xC0: return "Data";
             default: { char b[8]; snprintf(b, sizeof b, "0x%02X", p & 0xFF); return std::string(b); } } };
@@ -431,10 +433,20 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                 receivedMeterLanSrcID = u32id(gsSrc);
             }
         }
-    } else if (block_mode) {                       // 0x81 long AES uplink: cleartext routing header
+    } else if (block_mode) {                       // 0x81 long AES uplink (block-mode)
         gsClass = "long_report";
-        wanGps(5);                                 // 6-byte WAN @ body[5:11] (cleartext)
-        gsSrc = hexn(16, 4);                       // candidate origin LAN (lower confidence)
+        // On-air ciphertext = AES-256-ECB(+CTS)( LZSS(payload) || CRC16 ). Tag the ENCRYPTED span
+        // inside the reassembled block payload (gs_payload = blk_payload) so the downstream
+        // GridStreamDecrypt block knows exactly what to AES-decrypt. The cleartext routing header
+        // precedes the 80 E0 00 marker; the ciphertext starts right after it (field map, validated
+        // in docs/Long_Packet_0x81_Findings.md). The routed variant uses a C0 50 .. header instead.
+        gsEnc = true;
+        for (size_t i = 0; i + 3 <= blk_payload.size(); i++) {
+            if (blk_payload[i] == 0x80 && blk_payload[i + 1] == 0xE0 && blk_payload[i + 2] == 0x00) {
+                gsCtOff = (int)(i + 3); break;
+            }
+        }
+        if (gsCtOff >= 0) gsCtLen = (int)blk_payload.size() - gsCtOff;
     }
     double center_frequency = 0;
 	if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
@@ -535,6 +547,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                 meta = pmt::dict_add(meta, pmt::mp("gs_complete"),  pmt::from_bool(blk_complete));
                 meta = pmt::dict_add(meta, pmt::mp("gs_block_crc"), pmt::init_u8vector(blk_results.size(), blk_results));
                 meta = pmt::dict_add(meta, pmt::mp("gs_payload"),   pmt::init_u8vector(blk_payload.size(), blk_payload));
+                // encrypted-span tags for the downstream GridStreamDecrypt block
+                if (gsEnc)       meta = pmt::dict_add(meta, pmt::mp("gs_enc"),    pmt::mp(std::string("encrypted")));
+                if (gsCtOff >= 0) meta = pmt::dict_add(meta, pmt::mp("gs_ct_off"), pmt::from_long(gsCtOff));
+                if (gsCtLen >= 0) meta = pmt::dict_add(meta, pmt::mp("gs_ct_len"), pmt::from_long(gsCtLen));
             }
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
