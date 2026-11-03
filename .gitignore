@@ -60,3 +60,11 @@ examples/*/*/*.py
 /.project
 /.pydevproject
 /.vscode
+# Editor junk #
+###############
+.idea/
+.vscode/
+
+# Large IQ captures #
+#####################
+*.dat

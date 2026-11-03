@@ -44,6 +44,11 @@ documentation: |-
   gs_decompressed if LZSS is enabled). All other PDUs pass through unchanged.
   With no key, 0x81 PDUs stay tagged "encrypted".
 
+  NOTE: LZSS decompression is UNVERIFIED. The firmware LZSS variant is not
+  yet reverse-engineered and cannot be validated end-to-end until a key for
+  the captured network is found, so treat gs_decompressed as unverified.
+  The AES/CTS decrypt + CRC-16 oracle itself is validated independently.
+
   Key = the 32-byte network master key (EEPROM page +0xBF of a meter on the
   captured network), 64 hex chars. The two keys currently held do not decrypt
   the captured mesh (different deployment) -- see docs/EEPROM_Encryption_Keys.md.
