@@ -1,0 +1,51 @@
+id: smart_meters_GridStreamDecrypt
+label: GridStream Decrypt
+category: '[smart_meters]'
+
+templates:
+  imports: import smart_meters
+  make: smart_meters.GridStreamDecrypt(${key}, ${key2}, ${lzss}, ${debugEnable})
+
+parameters:
+- id: key
+  label: AES-256 Key (64 hex)
+  dtype: string
+  default: ''
+- id: key2
+  label: Second Key (optional)
+  dtype: string
+  default: ''
+- id: lzss
+  label: LZSS Decompress
+  dtype: enum
+  options: ['True', 'False']
+  default: 'False'
+- id: debugEnable
+  label: Debug
+  dtype: enum
+  options: ['True', 'False']
+  default: 'False'
+
+inputs:
+- domain: message
+  id: pdu_in
+
+outputs:
+- domain: message
+  id: pdu_out
+
+documentation: |-
+  Decrypt GridStream 0x81 long-packet payloads (AES-256-ECB + CTS) using the
+  meter firmware's CRC-16==0 integrity oracle, with optional LZSS decompress.
+
+  Feed it PDUs from the GridStream block. A PDU tagged gs_enc="encrypted" with
+  gs_ct_off/gs_payload is decrypted with the configured key(s); on success it is
+  re-tagged gs_enc="decrypted" and the plaintext attached as gs_plaintext (and
+  gs_decompressed if LZSS is enabled). All other PDUs pass through unchanged.
+  With no key, 0x81 PDUs stay tagged "encrypted".
+
+  Key = the 32-byte network master key (EEPROM page +0xBF of a meter on the
+  captured network), 64 hex chars. The two keys currently held do not decrypt
+  the captured mesh (different deployment) -- see docs/EEPROM_Encryption_Keys.md.
+
+file_format: 1

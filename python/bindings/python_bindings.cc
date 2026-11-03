@@ -23,6 +23,7 @@ namespace py = pybind11;
 // BINDING_FUNCTION_PROTOTYPES(
     void bind_GridStream(py::module& m);
     void bind_Deframer(py::module& m);
+    void bind_GridStreamDecrypt(py::module& m);
 // ) END BINDING_FUNCTION_PROTOTYPES
 
 
@@ -53,5 +54,6 @@ PYBIND11_MODULE(smart_meters_python, m)
     // BINDING_FUNCTION_CALLS(
     bind_GridStream(m);
     bind_Deframer(m);
+    bind_GridStreamDecrypt(m);
     // ) END BINDING_FUNCTION_CALLS
 }

@@ -14,6 +14,7 @@ include(GrPlatform) #define LIB_SUFFIX
 list(APPEND smart_meters_sources
     GridStream_impl.cc
     Deframer_impl.cc
+    GridStreamDecrypt_impl.cc
 )
 
 set(smart_meters_sources "${smart_meters_sources}" PARENT_SCOPE)

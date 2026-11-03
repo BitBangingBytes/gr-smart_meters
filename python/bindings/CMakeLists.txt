@@ -30,7 +30,8 @@ include(GrPybind)
 
 list(APPEND smart_meters_python_files
     GridStream_python.cc
-    Deframer_python.cc python_bindings.cc)
+    Deframer_python.cc
+    GridStreamDecrypt_python.cc python_bindings.cc)
 
 GR_PYBIND_MAKE_OOT(smart_meters 
    ../..
