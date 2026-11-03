@@ -13,6 +13,9 @@
 #include <gnuradio/io_signature.h>
 #include <chrono>
 #include <ctime>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -322,36 +325,116 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         }
     }
 
+    // ============================ FIELD EXTRACTION (redesigned 2026-11) =====================
+    // Parse EVERY frame type into PDU metadata so this block is the single parser any downstream
+    // system consumes. Address width is keyed on the L2 opcode (ProtocolType|FrameType, from the
+    // L+G collector CLppLink.FillHeader), NOT the packet_type 0x80 "routed" bit -- that bit does
+    // not change address width, which is the bug that misread 0xD5 Sync beacons as 4-byte LAN and
+    // produced phantom 'ffff50..' ids. Link header: [opcode][DstLAN:4][SrcLAN:4][FrameId:1].
+    // The Sync beacon (ProtocolType 0x30) is the ONLY link frame with broadcast dst + 6-byte WAN
+    // source + the real LAN identity at [26:30]; it appears under BOTH packet_type 0x55 and 0xD5.
+    //
+    //   PDU metadata schema -- OLD key (pre-2026-11)  ->  NEW key:
+    //     Gridstream_LanSrcID   -> gs_src        (8-hex LAN identity of the transmitter)
+    //     Gridstream_LanDstID   -> gs_dst        (8-hex LAN of the receiver; absent if broadcast)
+    //     Gridstream_WanSrcID   -> gs_wan        (12-hex 6-byte WAN address of the transmitter)
+    //     Gridstream_Uptime     -> gs_uptime
+    //     Gridstream_Freq       -> gs_freq
+    //     Gridstream_CRCState   -> gs_crc        ("OK"/"BAD"/"NA")
+    //     Gridstream_BlockMode  -> gs_blockmode ; _Blocks -> gs_blocks ; _BlocksOK -> gs_blocks_ok
+    //     Gridstream_Complete   -> gs_complete  ; _BlockCRC -> gs_block_crc ; _Payload -> gs_payload
+    //   New fields (no old equivalent): gs_ver gs_mtype gs_ptype gs_len gs_opcode gs_proto gs_ftype
+    //     gs_frameid gs_class gs_bcast gs_lat gs_lon gs_color gs_regts gs_statusseq gs_statusflags
+    //     gs_hopms gs_d2op gs_d2advert
+    // =======================================================================================
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
-    int upTime{ 0 };
-	std::string GridStreamMeterSrcID{ "" };
-	std::string GridStreamMeterSrcWanID{ "" };
-	std::string GridStreamMeterDstID{ "" };
+    int  upTime{ 0 };
+    std::string gsSrc, gsDst, gsWan, gsProto, gsFType, gsClass;
+    int  gsOpcode{ -1 }, gsFrameId{ -1 }, gsColor{ -1 };
+    int  gsRegTs{ 0 }, gsStatusSeq{ -1 }, gsStatusFlags{ -1 }, gsHopMs{ -1 }, gsD2Op{ -1 };
+    bool gsBcast{ false }, gsD2Advert{ false }, gsHaveGps{ false };
+    double gsLat{ 0 }, gsLon{ 0 };
+    int  gsVer = (data[0] == 0x80) ? 5 : (data[0] == 0x00 ? 4 : 0);
 
-    if (crc_state == 1) {   // CRC-OK 0x55/0xD5 only
-        if ( (packet_type == 0x55) && (packet_len == 0x0023) ) {
+    auto hexn = [&](size_t o, size_t n) -> std::string {
+        std::string s; if (o + n > data.size()) return s;
+        for (size_t i = 0; i < n; i++) s += char_to_hex(int(data[o + i])); return s; };
+    auto be32 = [&](size_t o) -> uint32_t {
+        if (o + 4 > data.size()) return 0u;
+        return (uint32_t(data[o]) << 24) | (uint32_t(data[o + 1]) << 16) |
+               (uint32_t(data[o + 2]) << 8) | uint32_t(data[o + 3]); };
+    auto u32id = [](const std::string& h) -> uint32_t {
+        return (h.size() == 8) ? (uint32_t)strtoul(h.c_str(), nullptr, 16) : 0xFFFFFFFFu; };
+    auto wanGps = [&](size_t o) {                  // decode 6-byte WAN at offset o -> hex + lat/lon
+        if (o + 6 > data.size()) return;
+        uint64_t V = 0; for (int i = 0; i < 6; i++) V = (V << 8) | data[o + i];
+        gsWan = hexn(o, 6);
+        if (((V >> 40) & 0xFF) == 0xFE) return;    // 0xFE guard = Mobile / non-GPS (LAN-derived)
+        const double SCALE = 360.0 / 4194304.0;    // 360 / 2^22
+        gsLat = 90.0 - double((V >> 27) & 0x1FFFFF) * SCALE;
+        gsLon = double((V >> 5) & 0x3FFFFF) * SCALE; if (gsLon > 180.0) gsLon -= 360.0;
+        gsColor = int(V & 0x1F); gsHaveGps = true; };
+    auto protoName = [](int p) -> std::string {    // vendor ProtocolType (opcode & 0xFC)
+        switch (p) { case 0x00: return "Null"; case 0x08: return "Test"; case 0x20: return "Tickle";
+            case 0x30: return "Sync"; case 0x40: return "Timestamp"; case 0x44: return "TimestampInq";
+            case 0x50: return "LinkInfo"; case 0x54: return "LinkInfoInq"; case 0xC0: return "Data";
+            default: { char b[8]; snprintf(b, sizeof b, "0x%02X", p & 0xFF); return std::string(b); } } };
+    static const char* FT[4] = { "DataNoAck", "DataAck", "Ack", "AckAck" };
 
-            receivedMeterLanSrcID = data[27 + 2] | data[26 + 2] << 8 |
-                                    data[25 + 2] << 16 | data[24 + 2] << 24;
-
-            GridStreamMeterSrcID = (char_to_hex(int(data[26]))+char_to_hex(int(data[27]))+
-                                    char_to_hex(int(data[28]))+char_to_hex(int(data[29])));
-
-            GridStreamMeterSrcWanID = (char_to_hex(int(data[13]))+char_to_hex(int(data[14]))+
-                                       char_to_hex(int(data[15]))+char_to_hex(int(data[16]))+
-                                       char_to_hex(int(data[17]))+char_to_hex(int(data[18])));
-            GridStreamMeterDstID = { "" };
-            upTime = data[21 + 2] | data[20 + 2] << 8 | data[19 + 2] << 16 | data[18 + 2] << 24;
+    if ((packet_type == 0x55 || packet_type == 0xD5) && crc_state == 1) {
+        int opcode = (data.size() > 6) ? data[6] : -1;
+        gsOpcode = opcode;
+        int proto = opcode & 0xFC, ftype = opcode & 0x03;
+        gsProto = protoName(proto); gsFType = FT[ftype];
+        if (proto == 0x30) {                       // SYNC beacon: broadcast dst + WAN src + LAN@26
+            gsBcast = true;
+            wanGps(13);                            // 6-byte WAN -> GPS
+            if (data.size() >= 24) upTime = (int)be32(20);
+            gsSrc = hexn(26, 4);                   // real transmitter LAN identity
+            receivedMeterLanSrcID = u32id(gsSrc);
+            gsClass = (packet_len == 0x23) ? "beacon" : "beacon_other";
+        } else {                                   // 4-byte LAN link frame
+            gsDst = hexn(7, 4); gsSrc = hexn(11, 4);
+            if (data.size() > 15) gsFrameId = data[15];
+            receivedMeterLanSrcID = u32id(gsSrc);
+            receivedMeterLanDstID = u32id(gsDst);
+            if (packet_len == 0x47 && data.size() >= 42) {   // LinkInfo(Inq) REGISTER heartbeat
+                gsRegTs = (int)be32(16);           // 32-bit Unix timestamp (payload[1:5])
+                wanGps(32);                        // own WAN -> GPS (embedded LAN@38 == src)
+                gsClass = "heartbeat_reg";
+            } else if (packet_len == 0x1C) { gsClass = "ondemand_poll"; }
+            else if (packet_len == 0x19) { gsClass = "ondemand_resp"; }
+            else if (packet_len >= 0x40) { gsClass = "report"; }
+            else if (packet_len == 17 || packet_len == 22 || packet_len == 23) {   // STATUS keep-alive
+                if (data.size() > 16) { gsStatusSeq = data[15]; gsStatusFlags = data[16]; }
+                gsClass = "status";
+            } else { gsClass = "unicast"; }
         }
-        else if (packet_type == 0xD5) {
-            receivedMeterLanSrcID = data[14] | data[13] << 8 | data[12] << 16 | data[11] << 24;
-            receivedMeterLanDstID = data[10] | data[9] << 8 | data[8] << 16 | data[7] << 24;
-            GridStreamMeterSrcID = (char_to_hex(int(data[11]))+char_to_hex(int(data[12]))+
-                                    char_to_hex(int(data[13]))+char_to_hex(int(data[14])));
-            GridStreamMeterDstID = (char_to_hex(int(data[7]))+char_to_hex(int(data[8]))+
-                                    char_to_hex(int(data[9]))+char_to_hex(int(data[10])));
+        {   // hop-clock ms from the 6-byte trailer (faithful port of _epoch_ms_from_body)
+            size_t end = data.size();
+            while (end > 0 && data[end - 1] == 0x04) end--;
+            if (end >= 6) {
+                const uint8_t* tr = &data[end - 6];
+                if ((tr[3] & 0x0F) == 0) {
+                    int ms = ((tr[0] << 8) | tr[1]) * 10 + (tr[3] >> 4);
+                    if (ms >= 0 && ms < 168000) gsHopMs = ms;   // 168 s FHSS cycle
+                }
+            }
         }
+    } else if ((packet_type == 0xD2 || packet_type == 0x52) && struct_ok) {
+        gsClass = "link_p2p";                      // routed point-to-point (header_len=5, no link CRC)
+        if (data.size() > 5) {
+            gsD2Op = data[5];                      // D2 opcode at data[5]
+            if (gsD2Op == 0x21 && data.size() >= 10) {   // neighbour/route advert -> real meter LAN
+                gsSrc = hexn(6, 4); gsD2Advert = true;
+                receivedMeterLanSrcID = u32id(gsSrc);
+            }
+        }
+    } else if (block_mode) {                       // 0x81 long AES uplink: cleartext routing header
+        gsClass = "long_report";
+        wanGps(5);                                 // 6-byte WAN @ body[5:11] (cleartext)
+        gsSrc = hexn(16, 4);                       // candidate origin LAN (lower confidence)
     }
     double center_frequency = 0;
 	if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
@@ -416,23 +499,42 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                     std::cout << "\n";
                 }
             }
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanSrcID"), pmt::mp(GridStreamMeterSrcID));
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_WanSrcID"), pmt::mp(GridStreamMeterSrcWanID));
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_LanDstID"), pmt::mp(GridStreamMeterDstID));
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_Uptime"), pmt::mp(upTime));
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_Freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
-            meta = pmt::dict_add(meta, pmt::mp("Gridstream_CRCState"),
+            // ---- PDU metadata (redesigned schema; old->new mapping at the extraction site) ----
+            meta = pmt::dict_add(meta, pmt::mp("gs_ver"),   pmt::from_long(gsVer));
+            meta = pmt::dict_add(meta, pmt::mp("gs_mtype"), pmt::from_long((long)data[2]));
+            meta = pmt::dict_add(meta, pmt::mp("gs_ptype"), pmt::from_long((long)packet_type));
+            meta = pmt::dict_add(meta, pmt::mp("gs_len"),   pmt::from_long((long)packet_len));
+            meta = pmt::dict_add(meta, pmt::mp("gs_crc"),
                                  pmt::mp(std::string(crc_state == 1 ? "OK" : crc_state == 2 ? "BAD" : "NA")));
-
+            meta = pmt::dict_add(meta, pmt::mp("gs_freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
+            if (!gsSrc.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_src"),   pmt::mp(gsSrc));
+            if (!gsDst.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_dst"),   pmt::mp(gsDst));
+            if (!gsWan.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_wan"),   pmt::mp(gsWan));
+            if (!gsProto.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_proto"), pmt::mp(gsProto));
+            if (!gsFType.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_ftype"), pmt::mp(gsFType));
+            if (!gsClass.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_class"), pmt::mp(gsClass));
+            if (gsOpcode >= 0)      meta = pmt::dict_add(meta, pmt::mp("gs_opcode"), pmt::from_long(gsOpcode));
+            if (gsFrameId >= 0)     meta = pmt::dict_add(meta, pmt::mp("gs_frameid"), pmt::from_long(gsFrameId));
+            if (gsBcast)            meta = pmt::dict_add(meta, pmt::mp("gs_bcast"), pmt::PMT_T);
+            if (gsHaveGps) {
+                meta = pmt::dict_add(meta, pmt::mp("gs_lat"),   pmt::mp(gsLat));
+                meta = pmt::dict_add(meta, pmt::mp("gs_lon"),   pmt::mp(gsLon));
+                meta = pmt::dict_add(meta, pmt::mp("gs_color"), pmt::from_long(gsColor));
+            }
+            if (upTime)             meta = pmt::dict_add(meta, pmt::mp("gs_uptime"), pmt::from_long(upTime));
+            if (gsRegTs)            meta = pmt::dict_add(meta, pmt::mp("gs_regts"), pmt::from_long(gsRegTs));
+            if (gsStatusSeq >= 0)   meta = pmt::dict_add(meta, pmt::mp("gs_statusseq"), pmt::from_long(gsStatusSeq));
+            if (gsStatusFlags >= 0) meta = pmt::dict_add(meta, pmt::mp("gs_statusflags"), pmt::from_long(gsStatusFlags));
+            if (gsHopMs >= 0)       meta = pmt::dict_add(meta, pmt::mp("gs_hopms"), pmt::from_long(gsHopMs));
+            if (gsD2Op >= 0)        meta = pmt::dict_add(meta, pmt::mp("gs_d2op"), pmt::from_long(gsD2Op));
+            if (gsD2Advert)         meta = pmt::dict_add(meta, pmt::mp("gs_d2advert"), pmt::PMT_T);
             if (block_mode) {
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlockMode"), pmt::PMT_T);
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Blocks"), pmt::mp(blk_count));
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlocksOK"), pmt::mp(blk_ok));
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Complete"), pmt::from_bool(blk_complete));
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_BlockCRC"),
-                                     pmt::init_u8vector(blk_results.size(), blk_results));
-                meta = pmt::dict_add(meta, pmt::mp("Gridstream_Payload"),
-                                     pmt::init_u8vector(blk_payload.size(), blk_payload));
+                meta = pmt::dict_add(meta, pmt::mp("gs_blockmode"), pmt::PMT_T);
+                meta = pmt::dict_add(meta, pmt::mp("gs_blocks"),    pmt::from_long(blk_count));
+                meta = pmt::dict_add(meta, pmt::mp("gs_blocks_ok"), pmt::from_long(blk_ok));
+                meta = pmt::dict_add(meta, pmt::mp("gs_complete"),  pmt::from_bool(blk_complete));
+                meta = pmt::dict_add(meta, pmt::mp("gs_block_crc"), pmt::init_u8vector(blk_results.size(), blk_results));
+                meta = pmt::dict_add(meta, pmt::mp("gs_payload"),   pmt::init_u8vector(blk_payload.size(), blk_payload));
             }
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
