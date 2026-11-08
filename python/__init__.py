@@ -19,7 +19,17 @@ try:
 except ModuleNotFoundError:
     pass
 
-# import any pure python here
-from .google_map import google_map
-from .google_earth import google_earth
+# import any pure python here.
+# google_map / google_earth are optional visualization blocks that pull third-party
+# deps (gmplot / simplekml) at import time. Guard them like the pybind import above so
+# the core decode module (Deframer, GridStream, GridStreamDecrypt) imports with no map
+# deps installed -- gmplot/simplekml are only needed if you actually use these blocks.
+try:
+    from .google_map import google_map
+except ModuleNotFoundError:
+    pass
+try:
+    from .google_earth import google_earth
+except ModuleNotFoundError:
+    pass
 #
