@@ -39,3 +39,10 @@ GR_PYBIND_MAKE_OOT(smart_meters
    "${smart_meters_python_files}")
 
 install(TARGETS smart_meters_python DESTINATION ${GR_PYTHON_DIR}/smart_meters COMPONENT pythonapi)
+
+# copy the bindings extension into the QA test module so `import smart_meters`
+# resolves from ${CMAKE_BINARY_DIR}/test_modules before install
+add_custom_command(TARGET smart_meters_python POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:smart_meters_python>
+    ${PROJECT_BINARY_DIR}/test_modules/smart_meters/
+)

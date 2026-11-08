@@ -32,5 +32,16 @@ GR_PYTHON_INSTALL(
 include(GrTest)
 
 set(GR_TEST_TARGET_DEPS gnuradio-smart_meters)
+
+# Assemble an importable `smart_meters` package in the build tree so the QA tests
+# can `import smart_meters` before `make install`. GrTest prepends
+# ${CMAKE_BINARY_DIR}/test_modules to PYTHONPATH; the bindings extension is copied
+# in alongside these sources by python/bindings/CMakeLists.txt.
+add_custom_target(
+    copy_module_for_tests ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}
+            ${PROJECT_BINARY_DIR}/test_modules/smart_meters/
+)
+
 GR_ADD_TEST(qa_Deframer ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_Deframer.py)
 GR_ADD_TEST(qa_GridStream ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_GridStream.py)

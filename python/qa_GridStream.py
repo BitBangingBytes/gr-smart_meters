@@ -39,9 +39,9 @@ class qa_GridStream(gr_unittest.TestCase):
         self.tb = None
 
     def test_001_complete_packet_pass_through(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        # GridStream(eCRC, eDEBUG, eCRCcolor, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(False, False, False, False, False, False, 
+        self.block_under_test = GridStream(False, False, False, False, False, False, False, 
                                            0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
@@ -53,14 +53,7 @@ class qa_GridStream(gr_unittest.TestCase):
         self.in_meta = pmt.dict_add(self.in_meta, pmt.intern("center_frequency"), pmt.from_double(915300000))
         in_pdu = pmt.cons(self.in_meta, pmt.init_u8vector(len(in_data), in_data))
 
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("center_frequency"), pmt.from_double(915300000))
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("Gridstream_LanSrcID"), pmt.intern("F06EBC01"))
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("Gridstream_WanSrcID"), pmt.intern("50CFFDD9E4E0"))
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("Gridstream_LanDstID"), pmt.intern(""))
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("Gridstream_Uptime"), pmt.from_long(17770312))
-        self.expected_meta = pmt.dict_add(self.expected_meta, pmt.intern("Gridstream_Freq"), pmt.from_double(915.3))
-
-        self.expected_pdu = pmt.cons(self.expected_meta, pmt.init_u8vector(len(expected_data), expected_data))
+        self.expected_payload = pmt.init_u8vector(len(expected_data), expected_data)
 
         self.tb.start()
         time.sleep(.001)
@@ -70,12 +63,20 @@ class qa_GridStream(gr_unittest.TestCase):
         self.tb.wait()
 
         self.assertEqual(1, self.debug.num_messages())
-        self.assertTrue(pmt.equal(self.debug.get_message(0), self.expected_pdu))
+        out = self.debug.get_message(0)
+        # payload passes through unchanged
+        self.assertTrue(pmt.equal(pmt.cdr(out), self.expected_payload))
+        # key decoded fields in the gs_* metadata schema
+        out_meta = pmt.car(out)
+        self.assertTrue(pmt.equal(pmt.dict_ref(out_meta, pmt.intern("gs_txlan"), pmt.PMT_NIL),
+                                  pmt.intern("F06EBC01")))
+        self.assertTrue(pmt.equal(pmt.dict_ref(out_meta, pmt.intern("gs_txwan"), pmt.PMT_NIL),
+                                  pmt.intern("50CFFDD9E4E0")))
 
     def test_002_partial_packet_pass_through(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        # GridStream(eCRC, eDEBUG, eCRCcolor, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(False, False, False, False, False, False, 
+        self.block_under_test = GridStream(False, False, False, False, False, False, False, 
                                            0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
@@ -98,9 +99,9 @@ class qa_GridStream(gr_unittest.TestCase):
         self.assertTrue(pmt.equal(in_pdu, expected_pdu))
 
     def test_003_passing_crc_pass_through(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        # GridStream(eCRC, eDEBUG, eCRCcolor, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(True, False, False, False, False, False, 
+        self.block_under_test = GridStream(True, False, False, False, False, False, False, 
                                            0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
@@ -127,9 +128,9 @@ class qa_GridStream(gr_unittest.TestCase):
         self.assertTrue(data, expected_data)
 
     def test_004_failing_crc_no_pass_through(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        # GridStream(eCRC, eDEBUG, eCRCcolor, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(True, False, False, False, False, False, 
+        self.block_under_test = GridStream(True, False, False, False, False, False, False, 
                                            0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
@@ -152,9 +153,9 @@ class qa_GridStream(gr_unittest.TestCase):
         self.assertEqual(0, self.debug.num_messages())
     
     def test_005_failing_crc_partial_packet_no_pass_through(self):
-        # GridStream(eCRC, eDEBUG, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
+        # GridStream(eCRC, eDEBUG, eCRCcolor, eTimeStamp, eEpoch, eFrequency, eBaudRate, 
         #            crcInit, LANsrc, LANdst, FilterPktType, FilterPktLen)
-        self.block_under_test = GridStream(True, False, False, False, False, False, 
+        self.block_under_test = GridStream(True, False, False, False, False, False, False, 
                                            0x5FD6, 0, 0, 0x00, 0x00)
         self.connectUp()
 
