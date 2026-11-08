@@ -50,3 +50,4 @@ one you can recover the other. The NetIDs below were recovered from the observed
 | Phoenix, AZ | APS | 64135 | `0xFA87` | `0x1D65` |
 | Long Island, NY | PSEG Long Island | 550 | `0x0226` | `0x22C6` |
 | Pennsylvania | PPL Electric | 40020 | `0x9C54` | `0x47F7` |
+| Louisville, KY | LG&E | 60150 | `0xEAF6` | `0x70A0` |
