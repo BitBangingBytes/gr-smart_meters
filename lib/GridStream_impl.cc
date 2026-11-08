@@ -335,9 +335,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     // source + the real LAN identity at [26:30]; it appears under BOTH packet_type 0x55 and 0xD5.
     //
     //   PDU metadata schema -- OLD key (pre-2026-11)  ->  NEW key:
-    //     Gridstream_LanSrcID   -> gs_src        (8-hex LAN identity of the transmitter)
-    //     Gridstream_LanDstID   -> gs_dst        (8-hex LAN of the receiver; absent if broadcast)
-    //     Gridstream_WanSrcID   -> gs_wan        (12-hex 6-byte WAN address of the transmitter)
+    //     Gridstream_LanSrcID   -> gs_txlan      (per-hop: LAN of the node transmitting THIS frame/hop)
+    //     Gridstream_LanDstID   -> gs_rxlan      (per-hop: LAN of the immediate receiver; absent if broadcast)
+    //     Gridstream_WanSrcID   -> gs_txwan      (per-hop: transmitter's own 6-byte WAN; end-to-end addrs = gs_{src,dst}{lan,wan})
     //     Gridstream_Uptime     -> gs_uptime
     //     Gridstream_Freq       -> gs_freq
     //     Gridstream_CRCState   -> gs_crc        ("OK"/"BAD"/"NA")
@@ -354,6 +354,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int  gsOpcode{ -1 }, gsFrameId{ -1 }, gsColor{ -1 };
     int  gsRegTs{ 0 }, gsStatusSeq{ -1 }, gsStatusFlags{ -1 }, gsHopMs{ -1 }, gsD2Op{ -1 };
     int  gsCtOff{ -1 }, gsCtLen{ -1 };             // 0x81 ciphertext span within gs_payload
+    std::string gsDstWan, gsDstLan, gsSrcWan, gsSrcLan;  // 0x81 end-to-end routing-header addrs (network layer)
     bool gsBcast{ false }, gsD2Advert{ false }, gsHaveGps{ false }, gsEnc{ false };
     double gsLat{ 0 }, gsLon{ 0 };
     int  gsVer = (data[0] == 0x80) ? 5 : (data[0] == 0x00 ? 4 : 0);
@@ -447,6 +448,14 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             }
         }
         if (gsCtOff >= 0) gsCtLen = (int)blk_payload.size() - gsCtOff;
+        // End-to-end network routing header (validated: docs/WAN_LAN_Addressing.md §10 + the 0x81
+        // field map). After the [81][ctrl] prefix, blk_payload holds the address block
+        // [dstWAN:6][dstLAN:4][srcWAN:6][srcLAN:4] at offsets 2/8/12/18. Raw bytes, hex; a non-GPS
+        // node uses the 0xFE.. WAN form, the universal head-end destination is 00 00 00 00 00 1F.
+        if (blk_payload.size() >= 22) {
+            auto bx = [&](size_t o, size_t n){ std::string r; for (size_t i=0;i<n;i++) r += char_to_hex(int(blk_payload[o+i])); return r; };
+            gsDstWan = bx(2,6); gsDstLan = bx(8,4); gsSrcWan = bx(12,6); gsSrcLan = bx(18,4);
+        }
     }
     double center_frequency = 0;
 	if (pmt::dict_has_key(meta, pmt::intern("center_frequency"))) {
@@ -519,9 +528,9 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             meta = pmt::dict_add(meta, pmt::mp("gs_crc"),
                                  pmt::mp(std::string(crc_state == 1 ? "OK" : crc_state == 2 ? "BAD" : "NA")));
             meta = pmt::dict_add(meta, pmt::mp("gs_freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
-            if (!gsSrc.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_src"),   pmt::mp(gsSrc));
-            if (!gsDst.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_dst"),   pmt::mp(gsDst));
-            if (!gsWan.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_wan"),   pmt::mp(gsWan));
+            if (!gsSrc.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_txlan"), pmt::mp(gsSrc));
+            if (!gsDst.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_rxlan"), pmt::mp(gsDst));
+            if (!gsWan.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_txwan"), pmt::mp(gsWan));
             if (!gsProto.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_proto"), pmt::mp(gsProto));
             if (!gsFType.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_ftype"), pmt::mp(gsFType));
             if (!gsClass.empty())   meta = pmt::dict_add(meta, pmt::mp("gs_class"), pmt::mp(gsClass));
@@ -551,6 +560,10 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                 if (gsEnc)       meta = pmt::dict_add(meta, pmt::mp("gs_enc"),    pmt::mp(std::string("encrypted")));
                 if (gsCtOff >= 0) meta = pmt::dict_add(meta, pmt::mp("gs_ct_off"), pmt::from_long(gsCtOff));
                 if (gsCtLen >= 0) meta = pmt::dict_add(meta, pmt::mp("gs_ct_len"), pmt::from_long(gsCtLen));
+                if (!gsDstWan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_dstwan"), pmt::mp(gsDstWan));
+                if (!gsDstLan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_dstlan"), pmt::mp(gsDstLan));
+                if (!gsSrcWan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_srcwan"), pmt::mp(gsSrcWan));
+                if (!gsSrcLan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_srclan"), pmt::mp(gsSrcLan));
             }
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
