@@ -7,10 +7,11 @@
  * GridStream 0x81 long-packet decrypt. On-air ciphertext =
  *   AES-256-ECB(+CTS)( LZSS(payload) || CRC16 )
  * (M16C firmware: aes_ecb_cts_crypt_node_chain @0x0DBA0E; key = 32-byte network master key
- * at EEPROM page +0xBF; see docs/Long_Packet_0x81_Findings.md / EEPROM_Encryption_Keys.md).
+ * at EEPROM page +0xBF; see the RECESSIM wiki -- Landis+Gyr GridStream Protocol:
+ * https://wiki.recessim.com/view/Landis%2BGyr_GridStream_Protocol ).
  * The integrity oracle is CRC-16/CCITT(poly 0x1021, init 0, no reflect) over the plaintext == 0,
  * which the firmware itself checks after decrypt. The AES/CTS/CRC here is a direct C++ port of the
- * FIPS-197-validated reference hopalong/research/0x81_block_crc/{aes256,keytest}.py.
+ * FIPS-197-validated reference implementation.
  */
 
 #ifdef HAVE_CONFIG_H
