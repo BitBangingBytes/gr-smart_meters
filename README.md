@@ -21,27 +21,32 @@ Build: `cmake -B build -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build -j && 
 
 For the full receive-only RF monitoring stack that drives these blocks, see [hopstream](https://github.com/BitBangingBytes/hopstream) (tier-1 flowgraph) and [hopstack](https://github.com/BitBangingBytes/hopstack) (umbrella + INSTALL.md).
 
+# Network ID and the per-network CRC
+Each GridStream network is identified by a 16-bit **Network ID (NetID)** — the value a utility's
+deployment is assigned, and the number the vendor's tooling shows in **decimal**. Frames don't carry the
+NetID directly; instead, the per-network CRC seed used to frame and validate every packet is derived
+from it:
+
+> **`CRC = CRC-16/CCITT(NetID)`** — polynomial `0x1021`, init `0x0000`, no bit reflection, computed over
+> the two NetID bytes most-significant-first. Example: NetID `38100` (`0x94D4`) → CRC `0x5FD6`.
+
+This map is a **bijection over all 16 bits**, so the NetID and its CRC are interchangeable — given either
+one you can recover the other. The NetIDs below were recovered from the observed CRCs this way (Oncor's
+`38100 → 0x5FD6` is independently confirmed from the meter firmware).
+
 # Known CRC Values
-Austin, TX.   |   Austin Energy       |   CRC = 0xD553
 
-Dallas, TX    |   CoServ              |   CRC = 0x45F8
-
-Dallas, TX    |   Oncor               |   CRC = 0x5FD6
-
-Quebec, CAN   |   Hydro-Quebec        |   CRC = 0x62C1
-
-Seattle, WA   |   Seattle City Light  |   CRC = 0x23D1
-
-Santa Barbara, CA   |   Southern California Edison   |   CRC = 0x2C22
-
-Washington   |   Puget Sound Energy   |   CRC = 0x142A
-
-Milwaukee, WI   |   We Energies   |   CRC = 0x4E2D
-
-Kansas City  |   Evergy               |   CRC = 0xE623
-
-Phoenix, AZ  |   APS                  |   CRC = 0x1D65
-
-Long Island, NY  |  PSEG Long Island   |   CRC = 0x22C6
-
-Pennsylvania  |  PPL Electric  |  CRC = 0x47F7
+| Location | Utility | NetID (dec) | NetID (hex) | CRC |
+|---|---|--:|:--|:--|
+| Austin, TX | Austin Energy | 35600 | `0x8B10` | `0xD553` |
+| Dallas, TX | CoServ | 37700 | `0x9344` | `0x45F8` |
+| Dallas, TX | Oncor | 38100 | `0x94D4` | `0x5FD6` |
+| Quebec, CAN | Hydro-Quebec | 42010 | `0xA41A` | `0x62C1` |
+| Seattle, WA | Seattle City Light | 34111 | `0x853F` | `0x23D1` |
+| Santa Barbara, CA | Southern California Edison | 100 | `0x0064` | `0x2C22` |
+| Washington | Puget Sound Energy | 37103 | `0x90EF` | `0x142A` |
+| Milwaukee, WI | We Energies | 27000 | `0x6978` | `0x4E2D` |
+| Kansas City | Evergy | 8100 | `0x1FA4` | `0xE623` |
+| Phoenix, AZ | APS | 64135 | `0xFA87` | `0x1D65` |
+| Long Island, NY | PSEG Long Island | 550 | `0x0226` | `0x22C6` |
+| Pennsylvania | PPL Electric | 40020 | `0x9C54` | `0x47F7` |
