@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(GridStream.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(cec30b2a52a9971d7914069431112d6e)                     */
+/* BINDTOOL_HEADER_FILE_HASH(d577c1e4ad2193c59bf2b845a9f11e11)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -49,6 +49,7 @@ void bind_GridStream(py::module& m)
            py::arg("meterLanDstID"),
            py::arg("packetTypeFilter"),
            py::arg("packetLengthFilter"),
+           py::arg("crcCorrectBits") = 0,
            D(GridStream,make)
         )
 

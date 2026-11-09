@@ -701,8 +701,15 @@ public:
      * \param multi_sync  re-detect the FFA0/FFF0 sync after each burst and keep deframing, so a
      *                    multi-burst transmission (0x81 block-mode long packet) is recovered whole.
      *                    Adds meta "GridStream_Bursts" (u32vector: byte offset of each burst's 00/80 FF).
+     * \param tolerant_framing  a byte whose start/stop bits are wrong (and that is not a one-bit
+     *                    slip) is kept at its expected position instead of ending the frame;
+     *                    deframing stops after 3 such bytes in a row (dropped) or, for
+     *                    0x55/0xD5/0xD2, once the length field's bytes are in. A flipped framing
+     *                    bit then costs nothing instead of truncating the frame; the CRC still
+     *                    decides validity.
      */
-    static sptr make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync = false);
+    static sptr make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync = false,
+                     bool tolerant_framing = false);
 };
 
 } // namespace smart_meters

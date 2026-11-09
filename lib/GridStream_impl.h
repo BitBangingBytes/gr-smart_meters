@@ -29,7 +29,9 @@ private:
     uint32_t d_meterLanDstID;
     uint8_t  d_packetTypeFilter;
     uint16_t d_packetLengthFilter;
+    uint8_t  d_crcCorrectBits;
     uint16_t crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t size, size_t header);
+    int fix_single_bit(std::vector<uint8_t>& data, size_t header_len, size_t packet_len);
     bool block_crc_ok(uint8_t hdr, const std::vector<uint8_t>& data, size_t from, size_t n, uint8_t lo);
 
     /*!
@@ -51,7 +53,8 @@ public:
                     uint32_t meterLanSrcID,
                     uint32_t meterLanDstID,
                     uint8_t  packetTypeFilter,
-                    uint16_t packetLengthFilter);
+                    uint16_t packetLengthFilter,
+                    uint8_t  crcCorrectBits);
     ~GridStream_impl() override;
 };
 

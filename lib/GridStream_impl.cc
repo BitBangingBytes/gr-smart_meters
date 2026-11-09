@@ -37,11 +37,13 @@ GridStream::sptr GridStream::make(
 					uint32_t meterLanSrcID,
 					uint32_t meterLanDstID,
 					uint8_t  packetTypeFilter,
-					uint16_t packetLengthFilter)
+					uint16_t packetLengthFilter,
+					uint8_t  crcCorrectBits)
 {
     return gnuradio::make_block_sptr<GridStream_impl>(
         crcEnable, debugEnable, crcColor, timestampEnable, epochEnable, frequencyEnable, baudrateEnable,
-        crcInitialValue, meterLanSrcID, meterLanDstID, packetTypeFilter, packetLengthFilter);
+        crcInitialValue, meterLanSrcID, meterLanDstID, packetTypeFilter, packetLengthFilter,
+        crcCorrectBits);
 }
 
 
@@ -60,7 +62,8 @@ GridStream_impl::GridStream_impl(
 					uint32_t meterLanSrcID,
 					uint32_t meterLanDstID,
 					uint8_t  packetTypeFilter,
-					uint16_t packetLengthFilter)
+					uint16_t packetLengthFilter,
+					uint8_t  crcCorrectBits)
     : gr::block(
           "GridStream", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
       d_crcEnable(crcEnable),
@@ -74,7 +77,8 @@ GridStream_impl::GridStream_impl(
       d_meterLanSrcID(meterLanSrcID),
       d_meterLanDstID(meterLanDstID),
       d_packetTypeFilter(packetTypeFilter),
-      d_packetLengthFilter(packetLengthFilter)
+      d_packetLengthFilter(packetLengthFilter),
+      d_crcCorrectBits(crcCorrectBits)
 {
     message_port_register_in(PMTCONSTSTR__PDU_IN);
     set_msg_handler(PMTCONSTSTR__PDU_IN,
@@ -134,6 +138,36 @@ GridStream_impl::crc16(uint16_t crc, const std::vector<uint8_t>& data, size_t pa
     return crc;
 }
 
+// One-bit CRC repair. data[header_len .. header_len+packet_len) = body + 2 CRC bytes. Returns the
+// PDU bit index (MSB-first) of the single flip that makes the CRC match, applying it, or -1 when
+// no flip or more than one flip does (then nothing is changed).
+int
+GridStream_impl::fix_single_bit(std::vector<uint8_t>& data, size_t header_len, size_t packet_len)
+{
+    if (packet_len < 3 || header_len + packet_len > data.size())
+        return -1;
+    const size_t first = header_len * 8, end = (header_len + packet_len) * 8;
+    auto ok = [&]() {
+        uint16_t rx = (uint16_t(data[header_len + packet_len - 2]) << 8) |
+                      data[header_len + packet_len - 1];
+        return crc16(d_crcInitialValue, data, packet_len, header_len) == rx;
+    };
+    int hit = -1;
+    for (size_t b = first; b < end; b++) {
+        data[b / 8] ^= uint8_t(0x80 >> (b % 8));
+        bool match = ok();
+        data[b / 8] ^= uint8_t(0x80 >> (b % 8));
+        if (match) {
+            if (hit >= 0)
+                return -1;          // ambiguous: refuse
+            hit = int(b);
+        }
+    }
+    if (hit >= 0)
+        data[hit / 8] ^= uint8_t(0x80 >> (hit % 8));
+    return hit;
+}
+
 static uint16_t reflect16(uint16_t x)
 {
     uint16_t r = 0;
@@ -178,7 +212,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     if (v_data_len < 6) {
         return;
     }
-    const std::vector<uint8_t> data = pmt::u8vector_elements(vector_data);
+    std::vector<uint8_t> data = pmt::u8vector_elements(vector_data);   // mutable: CRC repair
 
     // ---- 0x81 block-mode long packet (docs/0x81_Block_Mode_CRC.md) -----------------------
     // Each burst: [00|80] FF hdr data[L] lo [04];  hdr = (k<<3) | (last<<2) | crc[9:8];
@@ -297,6 +331,7 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int crc_low_byte = { 1 };
     // crc_state: 0 = NA (type not CRC-protected), 1 = OK (match), 2 = BAD (mismatch/unverifiable).
     int crc_state = 0;
+    int crc_fixed_bit = -1;   // >= 0: bit repaired by the one-bit CRC correction
     // struct_ok: structural validity used to admit CRC-NA types we cannot CRC-check but can
     // sanity-check. For CRC-checkable types the gate uses crc_state, not struct_ok.
     bool struct_ok = !malformed_packet;
@@ -313,6 +348,11 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             calculatedCRC = GridStream_impl::crc16(d_crcInitialValue, data, packet_len, header_len);
         }
         crc_state = (!malformed_packet && (receivedCRC == calculatedCRC)) ? 1 : 2;
+        if (crc_state == 2 && !malformed_packet && d_crcCorrectBits >= 1) {
+            crc_fixed_bit = fix_single_bit(data, (size_t)header_len, (size_t)packet_len);
+            if (crc_fixed_bit >= 0)
+                crc_state = 1;
+        }
         }
     } else if (!malformed_packet) {
         crc_state = 0;  // NA: not CRC-protected by the link layer
@@ -528,6 +568,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             meta = pmt::dict_add(meta, pmt::mp("gs_crc"),
                                  pmt::mp(std::string(crc_state == 1 ? "OK" : crc_state == 2 ? "BAD" : "NA")));
             meta = pmt::dict_add(meta, pmt::mp("gs_freq"), pmt::mp(double(floor(center_frequency/100000)/10)));
+            if (crc_fixed_bit >= 0)
+                meta = pmt::dict_add(meta, pmt::mp("gs_crc_fixed"), pmt::from_long(crc_fixed_bit));
             if (!gsSrc.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_txlan"), pmt::mp(gsSrc));
             if (!gsDst.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_rxlan"), pmt::mp(gsDst));
             if (!gsWan.empty())     meta = pmt::dict_add(meta, pmt::mp("gs_txwan"), pmt::mp(gsWan));

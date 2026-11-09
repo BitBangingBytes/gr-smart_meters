@@ -45,3 +45,4 @@ add_custom_target(
 
 GR_ADD_TEST(qa_Deframer ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_Deframer.py)
 GR_ADD_TEST(qa_GridStream ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_GridStream.py)
+GR_ADD_TEST(qa_robust_decode ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_robust_decode.py)

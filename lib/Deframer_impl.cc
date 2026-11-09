@@ -12,21 +12,25 @@
 namespace gr {
 namespace smart_meters {
 
-Deframer::sptr Deframer::make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync)
+Deframer::sptr Deframer::make(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync,
+                              bool tolerant_framing)
 {
-    return gnuradio::make_block_sptr<Deframer_impl>(min_length, max_length, debug, multi_sync);
+    return gnuradio::make_block_sptr<Deframer_impl>(min_length, max_length, debug, multi_sync,
+                                                  tolerant_framing);
 }
 
 /*
  * The private constructor
  */
-Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync)
+Deframer_impl::Deframer_impl(uint16_t min_length, uint16_t max_length, bool debug, bool multi_sync,
+                             bool tolerant_framing)
     : gr::block(
         "Deframer", gr::io_signature::make(0, 0, 0), gr::io_signature::make(0, 0, 0)),
      d_min_length(min_length),
      d_max_length(max_length),
      d_debug(debug),
-     d_multi_sync(multi_sync)
+     d_multi_sync(multi_sync),
+     d_tolerant(tolerant_framing)
 {
     message_port_register_in(PMTCONSTSTR__PDU_IN);
     set_msg_handler(PMTCONSTSTR__PDU_IN,
@@ -188,6 +192,8 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
     }
 
     int num_frame_errors = 0;
+    int bad_framing_run = 0;
+    const int tolerant_max_run = 3;
     bytesToProcess -= bytesProcessed;
     bool process_v5_special_pattern = false;
     // Process Frames
@@ -204,19 +210,47 @@ void Deframer_impl::pdu_handler(pmt::pmt_t pdu)
 
         if (current_frame) {
             num_frame_errors = 0;
+            bad_framing_run = 0;
             bytesProcessed += process_byte(data, out, offset);
         }
         else if (new_frame) {
             offset += 1;
             num_frame_errors += 1;
+            bad_framing_run = 0;
             bytesProcessed += process_byte(data, out, offset);
             if (gridstream_version == 5) {
                 process_v5_special_pattern = verify_v5_special_pattern(data, offset);
             }
         }
+        else if (d_tolerant) {
+            // Start/stop bits wrong here and one bit later: most likely a flipped framing bit,
+            // not a slip. Keep the byte where it should be and let the CRC judge. Several in a
+            // row means the transmission has ended (or clock recovery lost it): drop that run.
+            if (++bad_framing_run > tolerant_max_run) {
+                const int drop = tolerant_max_run;
+                out.resize(out.size() - drop);
+                bytesProcessed -= drop;
+                offset -= 10 * drop;
+                break;
+            }
+            bytesProcessed += process_byte(data, out, offset);
+        }
+        // (stock: neither framing position valid -> nothing advances, the frame ends here)
 
         if (num_frame_errors > 1) {
             break;
+        }
+
+        if (d_tolerant && gridstream_version != 0) {
+            // Stop at the length the header announces (out = 00|80 FF 2A ptype ...), so a
+            // tolerated run never eats into what follows.
+            size_t want = 0;
+            if (out.size() >= 5 && out[3] == 0xD2)
+                want = 5 + out[4];
+            else if (out.size() >= 6 && (out[3] == 0x55 || out[3] == 0xD5))
+                want = 6 + out[5];
+            if (want && out.size() >= want)
+                break;
         }
     }
 

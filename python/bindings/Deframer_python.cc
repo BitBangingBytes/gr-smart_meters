@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(Deframer.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(f5f1389294cd31978effe3447c7a6550)                     */
+/* BINDTOOL_HEADER_FILE_HASH(17edf5ca70fbc62e33b6f02b8b984dc2)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -41,6 +41,7 @@ void bind_Deframer(py::module& m)
            py::arg("max_length"),
            py::arg("debug"),
            py::arg("multi_sync") = false,
+           py::arg("tolerant_framing") = false,
            D(Deframer,make)
         )
         

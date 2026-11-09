@@ -5,7 +5,7 @@ category: '[smart_meters]'
 templates:
   imports: import smart_meters
   make: smart_meters.GridStream(${crcEnable}, ${debugEnable}, ${crcColor}, ${timestampEnable}, ${epochEnable}, ${frequencyEnable}, ${baudrateEnable}, 
-                                ${crcInitialValue}, ${meterLanSrcID}, ${meterLanDstID}, ${packetTypeFilter}, ${packetLengthFilter})
+                                ${crcInitialValue}, ${meterLanSrcID}, ${meterLanDstID}, ${packetTypeFilter}, ${packetLengthFilter}, ${crcCorrectBits})
 
 parameters:
 - id: crcEnable
@@ -32,6 +32,13 @@ parameters:
   label: Packet Length
   dtype: hex
   default: '0x23'
+- id: crcCorrectBits
+  label: CRC one-bit repair
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Off', 'Unique 1-bit']
+  default: '0'
+  hide: part
 - id: debugEnable
   label: Console Output
   category: Debug

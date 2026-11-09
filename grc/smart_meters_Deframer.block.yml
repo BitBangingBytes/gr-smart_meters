@@ -4,7 +4,7 @@ category: '[smart_meters]'
 
 templates:
   imports: import smart_meters
-  make: smart_meters.Deframer(${min_length}, ${max_length}, ${debug}, ${multi_sync})
+  make: smart_meters.Deframer(${min_length}, ${max_length}, ${debug}, ${multi_sync}, ${tolerant_framing})
 
 parameters:
 - id: min_length
@@ -17,6 +17,12 @@ parameters:
   default: 300
 - id: multi_sync
   label: Multi-burst (0x81)
+  dtype: enum
+  options: ['True', 'False']
+  default: 'False'
+  hide: part
+- id: tolerant_framing
+  label: Tolerate framing-bit errors
   dtype: enum
   options: ['True', 'False']
   default: 'False'
@@ -56,6 +62,9 @@ documentation: |-
     long packet (N bursts of 00 FF hdr data[80] lo [04]) is deframed whole; adds meta
     GridStream_Bursts (byte offset of each burst). Use max_length >= 1400 for 16-block transfers.
     
+    Tolerate framing-bit errors: a byte with a bad start/stop bit (not a one-bit slip) is kept
+    instead of ending the frame; stops after 3 such bytes in a row or at the length field.
+
     Takes in unpacked bits (00, 01, 00), and outputs PDU binary blobs. 
     10 unpacked bytes input result in one packed byte output as the start/stop bits are checked for validity and stripped off.
 
