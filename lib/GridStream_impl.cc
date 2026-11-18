@@ -386,6 +386,8 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     //   New fields (no old equivalent): gs_ver gs_mtype gs_ptype gs_len gs_opcode gs_proto gs_ftype
     //     gs_frameid gs_class gs_bcast gs_lat gs_lon gs_color gs_regts gs_statusseq gs_statusflags
     //     gs_hopms gs_d2op gs_d2advert
+    //   0x81 routed header: gs_ttl gs_luck gs_prio gs_mood gs_msgid gs_msgtype gs_retrcpt gs_plain
+    //     gs_last gs_lzss gs_hmac gs_sig gs_fragid gs_hdrext gs_srcroute
     // =======================================================================================
     uint32_t receivedMeterLanSrcID{ 0xFFFFFFFF };
     uint32_t receivedMeterLanDstID{ 0xFFFFFFFF };
@@ -395,6 +397,11 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
     int  gsRegTs{ 0 }, gsStatusSeq{ -1 }, gsStatusFlags{ -1 }, gsHopMs{ -1 }, gsD2Op{ -1 };
     int  gsCtOff{ -1 }, gsCtLen{ -1 };             // 0x81 ciphertext span within gs_payload
     std::string gsDstWan, gsDstLan, gsSrcWan, gsSrcLan;  // 0x81 end-to-end routing-header addrs (network layer)
+    // 0x81 routed network header fields (header = gs_payload[2..32), M16C c27e3 / collector CFragment)
+    int  gsTtl{ -1 }, gsLuck{ -1 }, gsPrio{ -1 }, gsMood{ -1 }, gsMsgId{ -1 }, gsMsgType{ -1 };
+    int  gsFragWord{ -1 }, gsRetRcpt{ -1 };
+    bool gsPlain{ false }, gsHdrExt{ false };
+    std::string gsSrcRoute;                        // source-route extension, "W:<hex>,S:<hex>,L:<hex>[D]"
     bool gsBcast{ false }, gsD2Advert{ false }, gsHaveGps{ false }, gsEnc{ false };
     double gsLat{ 0 }, gsLon{ 0 };
     int  gsVer = (data[0] == 0x80) ? 5 : (data[0] == 0x00 ? 4 : 0);
@@ -466,7 +473,11 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
             }
         }
     } else if ((packet_type == 0xD2 || packet_type == 0x52) && struct_ok) {
-        gsClass = "link_p2p";                      // routed point-to-point (header_len=5, no link CRC)
+        // Compact link frame (header_len=5): op|frameId|data|CRC16. The CRC (seed = network CRC init,
+        // BE) covers op|dstLAN|srcLAN|frameId|data, but the two LANs are not on air (0x21 keeps srcLAN),
+        // so it can only be checked with the address pair of the surrounding link exchange; a single
+        // frame stays CRC "NA" here. gridstream-docs D2_Structure_Findings.md §1.
+        gsClass = "link_p2p";
         if (data.size() > 5) {
             gsD2Op = data[5];                      // D2 opcode at data[5]
             if (gsD2Op == 0x21 && data.size() >= 10) {   // neighbour/route advert -> real meter LAN
@@ -476,25 +487,61 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
         }
     } else if (block_mode) {                       // 0x81 long AES uplink (block-mode)
         gsClass = "long_report";
-        // On-air ciphertext = AES-256-ECB(+CTS)( LZSS(payload) || CRC16 ). Tag the ENCRYPTED span
-        // inside the reassembled block payload (gs_payload = blk_payload) so the downstream
-        // GridStreamDecrypt block knows exactly what to AES-decrypt. The cleartext routing header
-        // precedes the 80 E0 00 marker; the ciphertext starts right after it (field map, validated
-        // in docs/Long_Packet_0x81_Findings.md). The routed variant uses a C0 50 .. header instead.
-        gsEnc = true;
-        for (size_t i = 0; i + 3 <= blk_payload.size(); i++) {
-            if (blk_payload[i] == 0x80 && blk_payload[i + 1] == 0xE0 && blk_payload[i + 2] == 0x00) {
-                gsCtOff = (int)(i + 3); break;
-            }
-        }
-        if (gsCtOff >= 0) gsCtLen = (int)blk_payload.size() - gsCtOff;
-        // End-to-end network routing header (validated: docs/WAN_LAN_Addressing.md §10 + the 0x81
-        // field map). After the [81][ctrl] prefix, blk_payload holds the address block
-        // [dstWAN:6][dstLAN:4][srcWAN:6][srcLAN:4] at offsets 2/8/12/18. Raw bytes, hex; a non-GPS
-        // node uses the 0xFE.. WAN form, the universal head-end destination is 00 00 00 00 00 1F.
-        if (blk_payload.size() >= 22) {
+        // Routed network header, 30 bytes at blk_payload[2..32) (M16C net_parse_l3_header c27e3,
+        // collector CFragment; gridstream-docs RF_Packet_Reference.md §5.3):
+        //   +0 dstWAN(6) +6 dstLAN(4) +10 srcWAN(6) +16 srcLAN(4)  end-to-end addresses
+        //   +20 TTL seconds (BE16)  +22 Luck (hops left)  +23 Mood(7:4)|HdrExt(3)|Priority(2:0)
+        //   +24 MessageID (BE24)    +27 MsgType(7:5)|ReturnReceipt(4:1)|PlainText(0)
+        //   +28 fragment word BE16: IsLast(15) Compressed(14) HMAC(13) Signature(12) FragmentID(11:0)
+        // then, if HdrExt, the source-route extension (in the clear), then the data. Unless the
+        // PlainText bit is set the data is AES-256-ECB(+CTS)( LZSS(payload) || CRC16 ); tag that span
+        // so the downstream GridStreamDecrypt block knows exactly what to decrypt.
+        const size_t H = 2;                        // header base inside blk_payload
+        if (blk_payload.size() >= H + 30) {
             auto bx = [&](size_t o, size_t n){ std::string r; for (size_t i=0;i<n;i++) r += char_to_hex(int(blk_payload[o+i])); return r; };
-            gsDstWan = bx(2,6); gsDstLan = bx(8,4); gsSrcWan = bx(12,6); gsSrcLan = bx(18,4);
+            const uint8_t* h = &blk_payload[H];
+            gsDstWan = bx(H+0,6); gsDstLan = bx(H+6,4); gsSrcWan = bx(H+10,6); gsSrcLan = bx(H+16,4);
+            gsTtl     = (h[20] << 8) | h[21];
+            gsLuck    = h[22];
+            gsMood    = h[23] >> 4;
+            gsHdrExt  = (h[23] & 0x08) != 0;
+            gsPrio    = h[23] & 0x07;
+            gsMsgId   = (h[24] << 16) | (h[25] << 8) | h[26];
+            gsMsgType = h[27] & 0xE0;
+            gsRetRcpt = (h[27] >> 1) & 0x0F;
+            gsPlain   = (h[27] & 0x01) != 0;
+            gsFragWord = (h[28] << 8) | h[29];
+            size_t data_off = H + 30;
+            // Source-route extension: [b0: len(6:0), bit7 = 0][groups...], each group byte = delayed(7)|
+            // type(6:5)|count(4:0) followed by count elements (type 0x00 WAN 6 B, 0x20 ShortLAN 2 B,
+            // 0x40 LAN 4 B; 0x60 invalid). Rules of net_validate_sourceroute_length_0c4567: not for
+            // flooded destinations (dstWAN[0] 0xFF/0xFD), len >= 3, groups must consume len exactly.
+            // Only the head-end sets HdrExt (no M16C writer); the first element is the next hop.
+            if (gsHdrExt && h[0] != 0xFF && h[0] != 0xFD && blk_payload.size() > data_off) {
+                uint8_t b0 = blk_payload[data_off];
+                size_t L = b0 & 0x7F;
+                if (!(b0 & 0x80) && L >= 3 && data_off + 1 + L <= blk_payload.size()) {
+                    size_t p = data_off + 1, end = data_off + 1 + L;
+                    std::string route; bool ok = true;
+                    while (p < end && ok) {
+                        uint8_t g = blk_payload[p++];
+                        uint8_t ty = g & 0x60, cnt = g & 0x1F;
+                        size_t sz = ty == 0x00 ? 6 : ty == 0x20 ? 2 : ty == 0x40 ? 4 : 0;
+                        if (sz == 0 || p + cnt * sz > end) { ok = false; break; }
+                        const char* tag = ty == 0x00 ? "W:" : ty == 0x20 ? "S:" : "L:";
+                        for (int k = 0; k < cnt; k++, p += sz) {
+                            if (!route.empty()) route += ",";
+                            route += tag + bx(p, sz) + ((g & 0x80) ? "D" : "");
+                        }
+                    }
+                    if (ok && p == end) { gsSrcRoute = route; data_off = end; }
+                }
+            }
+            if (!gsPlain) {
+                gsEnc = true;
+                gsCtOff = (int)data_off;
+                gsCtLen = (int)blk_payload.size() - gsCtOff;
+            }
         }
     }
     double center_frequency = 0;
@@ -606,6 +653,23 @@ void GridStream_impl::pdu_handler(pmt::pmt_t pdu)
                 if (!gsDstLan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_dstlan"), pmt::mp(gsDstLan));
                 if (!gsSrcWan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_srcwan"), pmt::mp(gsSrcWan));
                 if (!gsSrcLan.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_srclan"), pmt::mp(gsSrcLan));
+                if (gsTtl >= 0) {
+                    meta = pmt::dict_add(meta, pmt::mp("gs_ttl"),     pmt::from_long(gsTtl));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_luck"),    pmt::from_long(gsLuck));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_prio"),    pmt::from_long(gsPrio));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_mood"),    pmt::from_long(gsMood));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_msgid"),   pmt::from_long(gsMsgId));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_msgtype"), pmt::from_long(gsMsgType));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_retrcpt"), pmt::from_long(gsRetRcpt));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_plain"),   pmt::from_bool(gsPlain));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_last"),    pmt::from_bool((gsFragWord & 0x8000) != 0));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_lzss"),    pmt::from_bool((gsFragWord & 0x4000) != 0));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_hmac"),    pmt::from_bool((gsFragWord & 0x2000) != 0));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_sig"),     pmt::from_bool((gsFragWord & 0x1000) != 0));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_fragid"),  pmt::from_long(gsFragWord & 0x0FFF));
+                    meta = pmt::dict_add(meta, pmt::mp("gs_hdrext"),  pmt::from_bool(gsHdrExt));
+                }
+                if (!gsSrcRoute.empty()) meta = pmt::dict_add(meta, pmt::mp("gs_srcroute"), pmt::mp(gsSrcRoute));
             }
             message_port_pub(PMTCONSTSTR__PDU_OUT,(pmt::cons(meta, pmt::init_u8vector(data.size(), data))));
             return;
